@@ -4,31 +4,92 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CEDESP Bingo - Área do Educador</title>
-    
-    <!-- Ícone da Aba do Navegador (Favicon) -->
     <link rel="icon" href="assets/image/logo_cedesp.png" type="image/png">
-    
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0" />
     <style>
-        input[type="radio"].custom-radio { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; border: 2px solid var(--sunflower-gold); border-radius: 50%; margin-right: 8px; position: relative; cursor: pointer; outline: none; }
-        input[type="radio"].custom-radio:checked::before { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 10px; height: 10px; background-color: var(--sunflower-gold); border-radius: 50%; }
-        input[type="text"]:focus, input[type="number"]:focus, input[type="password"]:focus { border-color: var(--petal-pink) !important; box-shadow: 0 0 0 3px rgba(188, 104, 161, 0.2) !important; outline: none; transition: all 0.3s ease; }
+        /* Estilo da Elipse de Foto para Cadastro */
+        .foto-upload-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background-color: #f0f0f0;
+            border: 2px dashed var(--petal-pink);
+            margin: 0 auto 1.5rem auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            overflow: hidden;
+            position: relative;
+        }
+        .foto-upload-circle img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none; /* Fica oculto até carregar a foto */
+        }
+        .foto-upload-circle .icon-camera {
+            font-size: 40px;
+            color: #ccc;
+            position: absolute;
+        }
+
+        /* Estilo do Checkbox Roxo para Atribuição de Lote */
+        input[type="checkbox"].roxo-checkbox {
+            appearance: none; -webkit-appearance: none;
+            width: 20px; height: 20px;
+            border: 2px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+            outline: none;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        input[type="checkbox"].roxo-checkbox:checked {
+            background-color: var(--petal-pink);
+            border-color: var(--petal-pink);
+        }
+        input[type="checkbox"].roxo-checkbox:checked::after {
+            content: '✔';
+            color: white;
+            position: absolute;
+            font-size: 14px;
+            top: -1px; left: 3px;
+        }
+        
+        .checkbox-list-container {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+            background: #fafafa;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        input[type="text"]:focus, select:focus { border-color: var(--petal-pink) !important; box-shadow: 0 0 0 3px rgba(188, 104, 161, 0.2) !important; outline: none; }
     </style>
 </head>
-<!-- O ID educadorPage avisa o JS para ativar os gatilhos desta tela -->
 <body class="dashboard-body" id="educadorPage">
 
     <div class="dashboard-wrapper">
-        <!-- MENU LATERAL -->
+        <!-- MENU LATERAL ORIGINAL RESTAURADO -->
         <aside class="sidebar" id="sidebar">
-            <div class="sidebar-logo">
-                <img src="assets/image/logo_cedesp.png" alt="Logo CEDESP">
+            <div class="sidebar-logo" style="display: flex; justify-content: space-between; align-items: center;">
+                <img src="assets/image/logo_cedesp.png" alt="Logo CEDESP" style="max-width: 150px;">
                 <button class="close-sidebar-btn" id="closeSidebar"><span class="material-symbols-outlined">close</span></button>
             </div>
             <ul class="sidebar-nav">
-                <li class="nav-item active"><span class="material-symbols-outlined nav-icon">monitoring</span> <span class="nav-text">Meus Educandos</span></li>
-                <li class="nav-item" id="btnMenuAtribuirLote"><span class="material-symbols-outlined nav-icon">assignment_add</span> <span class="nav-text">Atribuir Lote</span></li>
+                <li class="nav-item active"><span class="material-symbols-outlined nav-icon">groups</span> <span class="nav-text">Minha Turma</span></li>
+                <li class="nav-item"><span class="material-symbols-outlined nav-icon">bar_chart</span> <span class="nav-text">Vendas Geral</span></li>
+                <!-- GATILHOS DOS MODAIS AQUI -->
+                <li class="nav-item" onclick="abrirModal('modalCadastrarEducando')"><span class="material-symbols-outlined nav-icon">person_add</span> <span class="nav-text">Cadastrar Educando</span></li>
+                <li class="nav-item" onclick="abrirModal('modalAtribuirLote')"><span class="material-symbols-outlined nav-icon">assignment_ind</span> <span class="nav-text">Atribuir Lote</span></li>
+                <li class="nav-item"><span class="material-symbols-outlined nav-icon">social_leaderboard</span> <span class="nav-text">Ranking Educandos</span></li>
             </ul>
             <div class="sidebar-footer">
                 <button class="btn-logout" onclick="window.location.href='index.html'"><span class="material-symbols-outlined nav-icon">logout</span> <span class="nav-text">Sair do Sistema</span></button>
@@ -44,18 +105,14 @@
                 </div>
                 <div class="user-profile">
                     <span class="user-name" id="nomeEducador">Educador</span> 
-                    <span class="user-badge" style="background-color: var(--obsidian); color: white;">EDUCADOR</span>
+                    <span class="user-badge" style="background-color: var(--petal-pink); color: white;">EDUCADOR</span>
                 </div>
             </header>
 
             <main class="admin-container">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
                     <h2 class="section-title" style="margin-bottom: 0; border: none;">Meus Educandos</h2>
-                    <button class="btn-primary" id="btnNovoEducando" style="padding: 0.5rem 1rem; display: flex; align-items: center; gap: 5px;">
-                        <span class="material-symbols-outlined">person_add</span> Cadastrar Educando
-                    </button>
                 </div>
-
                 <div class="table-container" style="overflow-x: auto; width: 100%;">
                     <table class="data-table tabela-interativa" style="min-width: 800px;">
                         <thead>
@@ -78,105 +135,93 @@
     </div>
 
     <!-- ===================================== -->
-    <!-- MODAIS DO EDUCADOR -->
+    <!-- MODAL: CADASTRAR EDUCANDO -->
     <!-- ===================================== -->
-    
-    <!-- Modal Cadastrar Educando (Com Foto e Base64) -->
     <div class="modal-overlay" id="modalCadastrarEducando">
-        <div class="modal-box" style="width: 90%; max-width: 500px;">
+        <div class="modal-box" style="width: 90%; max-width: 400px;">
             <div class="modal-header">
                 <h2>Cadastrar Educando</h2>
                 <button class="close-modal-btn" onclick="fecharModal('modalCadastrarEducando')"><span class="material-symbols-outlined">close</span></button>
             </div>
             <div class="modal-body">
                 <form id="formCadastrarEducando">
+                    <!-- Elipse de Foto -->
+                    <div class="foto-upload-circle" onclick="document.getElementById('inputFotoEducando').click()">
+                        <span class="material-symbols-outlined icon-camera" id="iconCamera">add_a_photo</span>
+                        <img id="previewFoto" src="" alt="Preview">
+                    </div>
+                    <input type="file" id="inputFotoEducando" accept="image/*" style="display: none;" onchange="previewImagemEducando(event)">
+
+                    <!-- Lista de Nomes (Baseado no Curso) -->
                     <div class="form-group">
-                        <label>Nome Completo</label>
-                        <input type="text" id="nomeEducando" required style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid #ccc;">
+                        <label style="color: var(--dim-grey); font-weight: bold;">Nome do Educando</label>
+                        <select id="nomeSelectEducando" required style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid #ccc; color: var(--dim-grey); font-size: 1rem;">
+                            <option value="">Selecione o aluno da lista...</option>
+                            <!-- Esta lista pode ser alimentada via JS, deixei uns exemplos -->
+                            <option value="Davi Fernandes">Davi Fernandes</option>
+                            <option value="Beatriz Silva">Beatriz Silva</option>
+                            <option value="João Pedro">João Pedro</option>
+                        </select>
                     </div>
                     
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <div class="form-group" style="flex: 1 1 200px;">
-                            <label>Curso</label>
-                            <div class="custom-select-wrapper">
-                                <div class="custom-select" id="cursoEducando">
-                                    <div class="custom-select-trigger" style="padding: 0.8rem; border-radius: 8px; border: 1px solid #ccc;">
-                                        <span class="trigger-text" style="color: var(--dim-grey);">Selecione...</span>
-                                        <span class="material-symbols-outlined arrow-icon">expand_more</span>
-                                    </div>
-                                    <div class="custom-options">
-                                        <span class="custom-option" data-value="UX/UI Design">UX/UI Design</span>
-                                        <span class="custom-option" data-value="Auxiliar Administrativo">Auxiliar Administrativo</span>
-                                        <span class="custom-option" data-value="Eletricista Instalador">Eletricista Instalador</span>
-                                        <span class="custom-option" data-value="Mecanica de Motor">Mecanica de Motor</span>
-                                        <span class="custom-option" data-value="Mecanica de Suspensão">Mecanica de Suspensão</span>
-                                        <span class="custom-option" data-value="Operador de Microcomputador">Operador de Microcomputador</span>
-                                    </div>
-                                </div>
-                                <input type="hidden" id="cursoEducandoVal" required>
-                            </div>
-                        </div>
-                        <div class="form-group" style="flex: 1 1 120px;">
-                            <label>Turma</label>
-                            <input type="text" id="turmaEducando" required placeholder="Ex: Turma 1" style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid #ccc;">
-                        </div>
-                    </div>
-
+                    <!-- Turmas Manhã e Tarde -->
                     <div class="form-group">
-                        <label>Período</label>
-                        <div style="display: flex; gap: 15px; margin-top: 5px;">
-                            <label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="periodo" value="Manhã" class="custom-radio" checked> Manhã</label>
-                            <label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="periodo" value="Tarde" class="custom-radio"> Tarde</label>
-                            <label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="periodo" value="Noite" class="custom-radio"> Noite</label>
-                        </div>
+                        <label style="color: var(--dim-grey); font-weight: bold;">Turma e Período</label>
+                        <select id="turmaSelectEducando" required style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid #ccc; color: var(--dim-grey); font-size: 1rem;">
+                            <option value="">Selecione a Turma...</option>
+                            <option value="Turma 1">Turma 1 (Manhã)</option>
+                            <option value="Turma 2">Turma 2 (Manhã)</option>
+                            <option value="Turma 3">Turma 3 (Tarde)</option>
+                            <option value="Turma 4">Turma 4 (Tarde)</option>
+                        </select>
                     </div>
 
-                    <div class="form-group">
-                        <label>Foto (Opcional - Formato quadrado recomendado)</label>
-                        <input type="file" id="fotoEducando" accept="image/*" style="width: 100%; padding: 0.5rem; border: 1px dashed #ccc; border-radius: 8px;">
-                    </div>
-
-                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Salvar Cadastro</button>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Salvar Educando</button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Modal Atribuir Lote -->
+    <!-- ===================================== -->
+    <!-- MODAL: ATRIBUIR LOTE -->
+    <!-- ===================================== -->
     <div class="modal-overlay" id="modalAtribuirLote">
         <div class="modal-box" style="width: 90%; max-width: 450px;">
             <div class="modal-header">
-                <h2>Atribuir Lotes ao Educando</h2>
+                <h2>Atribuir Lote</h2>
                 <button class="close-modal-btn" onclick="fecharModal('modalAtribuirLote')"><span class="material-symbols-outlined">close</span></button>
             </div>
             <div class="modal-body">
                 <form id="formAtribuirLote">
+                    
+                    <!-- Checkbox de Lotes -->
                     <div class="form-group">
-                        <label>Educando</label>
-                        <div class="custom-select-wrapper">
-                            <div class="custom-select" id="selectAlunoWrapper">
-                                <div class="custom-select-trigger" style="padding: 0.8rem; border-radius: 8px; border: 1px solid #ccc;">
-                                    <span class="trigger-text" style="color: var(--dim-grey);">Selecione o aluno...</span>
-                                    <span class="material-symbols-outlined arrow-icon">expand_more</span>
-                                </div>
-                                <div class="custom-options" id="selectAlunoAtribuir">
-                                    <!-- A lista de alunos será preenchida automaticamente via JavaScript -->
-                                </div>
-                            </div>
-                            <input type="hidden" id="alunoAtribuirVal" required>
+                        <label style="color: var(--dim-grey); font-weight: bold;">Lotes Disponíveis</label>
+                        <div class="checkbox-list-container" id="listaLotesCheckboxes">
+                            <!-- Os lotes serão renderizados aqui via JS. Exemplos: -->
+                            <label><input type="checkbox" class="roxo-checkbox" value="LOTE-01"> LOTE-01</label>
+                            <label><input type="checkbox" class="roxo-checkbox" value="LOTE-02"> LOTE-02</label>
+                            <label><input type="checkbox" class="roxo-checkbox" value="LOTE-03"> LOTE-03</label>
+                            <label><input type="checkbox" class="roxo-checkbox" value="LOTE-04"> LOTE-04</label>
                         </div>
                     </div>
+
+                    <!-- Select de Educando -->
                     <div class="form-group">
-                        <label>Códigos dos Lotes (Separados por vírgula)</label>
-                        <input type="text" id="lotesAtribuir" required placeholder="Ex: WEB-10, WEB-11, ADM-01" style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid #ccc;">
+                        <label style="color: var(--dim-grey); font-weight: bold;">Selecione o Educando</label>
+                        <select id="alunoAtribuirSelect" required style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid #ccc; color: var(--dim-grey); font-size: 1rem;">
+                            <option value="">Escolha um aluno da sua turma...</option>
+                            <!-- A lista de alunos será preenchida automaticamente via JavaScript -->
+                        </select>
                     </div>
+
                     <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Confirmar Atribuição</button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Ficha do Educando -->
+    <!-- Ficha do Educando (Original para cliques na tabela) -->
     <div class="modal-overlay" id="modalDetalhesAluno"><div class="modal-box" style="width: 90%; max-width: 450px;"><div class="modal-header"><h2>Ficha do Educando</h2><button class="close-modal-btn" onclick="fecharModal('modalDetalhesAluno')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="padding-top: 1rem;"><div style="text-align: center; margin-bottom: 1.5rem;"><img src="" id="detalheFoto" class="table-avatar" style="width: 80px; height: 80px; margin: 0 auto 10px auto; border-color: var(--petal-pink);"><h3 id="detalheNome" style="color: var(--dim-grey); margin-bottom: 5px; font-size: 1.4rem;">Nome do Aluno</h3><p id="detalheTurma" style="color: var(--petal-pink); font-size: 0.95rem; font-weight: 600;">Curso - Turma</p></div><div class="lotes-info-grid"><div class="lote-status-box"><span class="status-title" style="color: var(--petal-pink);">Lotes Vendidos (<span id="detalheQtdVendidos">0</span>)</span><div class="lotes-badges" id="detalheBadgesVendidos"></div></div><div class="lote-status-box"><span class="status-title" style="color: var(--sunflower-gold);">Lotes Pendentes (<span id="detalheQtdPendentes">0</span>)</span><div class="lotes-badges" id="detalheBadgesPendentes"></div><p id="msgCliquePendente" style="font-size: 0.75rem; color: #a0a0a0; margin-top: 8px; display: none;">* Clique no lote para validar ou devolver.</p></div><div class="lote-status-box"><span class="status-title" style="color: var(--dim-grey);">Lotes Devolvidos (<span id="detalheQtdDevolvidos">0</span>)</span><div class="lotes-badges" id="detalheBadgesDevolvidos"></div></div></div></div></div></div>
 
     <!-- Modais de Notificação (Erro e Sucesso) -->
@@ -185,5 +230,23 @@
     <div class="modal-overlay" id="modalSucesso"><div class="modal-box" style="width: 90%; max-width: 400px;"><div class="modal-header"><h2>Sucesso!</h2><button class="close-modal-btn" onclick="fecharModal('modalSucesso')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="text-align: center;"><span class="material-symbols-outlined" style="font-size: 56px; color: var(--petal-pink); margin-bottom: 1rem;">check_circle</span><p class="modal-desc" id="textoModalSucesso" style="font-size: 1.1rem; color: var(--dim-grey);"></p><button class="btn-primary" onclick="fecharModal('modalSucesso')" style="width: 100%;">Entendido</button></div></div></div>
 
     <script src="js/app.js"></script>
+    <script>
+        // Lógica de Preview da Foto da Elipse
+        function previewImagemEducando(event) {
+            const input = event.target;
+            const imgPreview = document.getElementById('previewFoto');
+            const iconCamera = document.getElementById('iconCamera');
+            
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imgPreview.src = e.target.result;
+                    imgPreview.style.display = 'block';
+                    iconCamera.style.display = 'none';
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+    </script>
 </body>
 </html>
