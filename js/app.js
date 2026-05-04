@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.logsDoSistema = [];
 
     // ==========================================
-    // 2. FUNÇÕES DE INTERFACE (Selects, Sidebars)
+    // 2. FUNÇÕES DE INTERFACE (Selects Customizados e Sidebar)
     // ==========================================
     function ativarEventosSelectCustomizado(wrapperNode) {
         const select = wrapperNode.querySelector('.custom-select');
@@ -80,18 +80,20 @@ document.addEventListener("DOMContentLoaded", () => {
         .then(response => response.json())
         .then(data => {
             if(data.success) {
+                // 3.1 Mapeia Educandos
                 window.todosEducandosBD = data.educandos.map(e => ({
                     nome: e['Nome_Educando'] || e['Nome'],
                     curso: e['Curso'],
                     turma: e['Turma'],
                     periodo: e['Periodo'],
-                    educadorResponsavel: e['Educador_Responsavel'] || '',
-                    foto: e['Foto_URL'] || `https://ui-avatars.com/api/?name=${e['Nome_Educando'] || e['Nome']}&background=BC68A1&color=fff`,
+                    educadorResponsavel: e['Educador_Responsavel'] || e['Educador'] || '',
+                    foto: e['Foto_URL'] || e['Foto'] || `https://ui-avatars.com/api/?name=${e['Nome_Educando'] || e['Nome']}&background=BC68A1&color=fff`,
                     lotesPendentes: e['Lotes_Pendentes'] ? String(e['Lotes_Pendentes']).split(',').map(s=>s.trim()).filter(Boolean) : [],
                     lotesVendidos: e['Lotes_Vendidos'] ? String(e['Lotes_Vendidos']).split(',').map(s=>s.trim()).filter(Boolean) : [],
                     lotesDevolvidos: e['Lotes_Devolvidos'] ? String(e['Lotes_Devolvidos']).split(',').map(s=>s.trim()).filter(Boolean) : []
                 }));
 
+                // 3.2 Mapeia Educadores
                 window.mockEducadoresBD = data.educadores.map(e => {
                     let vendidos = 0; let pendentes = 0;
                     window.todosEducandosBD.forEach(al => {
@@ -109,6 +111,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     };
                 });
 
+                // 3.3 Mapeia Parceiros
                 window.mockParceirosBD = data.parceiros.map(p => ({
                     nome: p['Nome do Parceiro'] || p['Nome_Responsavel'],
                     lotes: parseInt(p['Qtd Lotes']) || 15,
@@ -117,15 +120,17 @@ document.addEventListener("DOMContentLoaded", () => {
                     pagDin: parseFloat(p['Valor Dinheiro'] || p['Valor_Dinheiro']) || 0
                 }));
 
+                // 3.4 Mapeia Caixa Global (Livro Razão)
                 window.caixaGlobal = { pixReais: 0, dinReais: 0 };
                 if (data.caixaGlobal) {
                     data.caixaGlobal.forEach(transacao => {
-                        let valor = parseFloat(transacao['Valor']) || 0;
+                        let valor = parseFloat(transacao['Valor']) || parseFloat(transacao['Valor_Total']) || 0;
                         if(transacao['Metodo_Pagamento'] === 'PIX') window.caixaGlobal.pixReais += valor;
                         if(transacao['Metodo_Pagamento'] === 'Dinheiro') window.caixaGlobal.dinReais += valor;
                     });
                 }
 
+                // 3.5 Mapeia Logs
                 window.logsDoSistema = data.logs.reverse().map(l => ({ 
                     data: l['Data Hora'] || l['Data_Hora'],
                     responsavel: l['Responsavel'] || l['Usuario'] || 'Sistema',
@@ -134,6 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     detalhe: l['Detalhes']
                 }));
 
+                // Tudo carregado! Atualiza a UI correta
                 if(btnSync) btnSync.innerText = userName;
                 if(document.getElementById("adminPage")) window.atualizarDashboardsADM();
                 if(document.getElementById("educadorPage")) window.atualizarDashboardEducador();
@@ -167,6 +173,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 btn.innerText = "Acessar Sistema"; btn.disabled = false;
                 if (data.success) {
                     localStorage.setItem('usuarioLogado', educador);
+                    // Aqui pode buscar o curso também, se a API retornar
                     window.location.href = (data.nivelAcesso === "ADM") ? "admin.html" : "educador.html"; 
                 } else { window.abrirModalErro(data.message); }
             }).catch((err) => { 
@@ -177,7 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
-    // 5. INICIALIZAÇÃO TELA EDUCADOR (CADASTRO E LOTES)
+    // 5. LÓGICA DO EDUCADOR (Aba Minha Turma, Cadastro e Atribuição)
     // ==========================================
     const educadorPage = document.getElementById("educadorPage");
     
@@ -186,8 +193,8 @@ document.addEventListener("DOMContentLoaded", () => {
         window.carregarDadosDoBanco();
 
         window.atualizarDashboardEducador = function() {
-            // Filtra os alunos que pertencem ao educador logado (por nome ou curso)
-            const meusAlunos = window.todosEducandosBD.filter(a => a.educadorResponsavel === userName || !a.educadorResponsavel); // Ajuste a lógica conforme precisar
+            // Filtra alunos pelo nome do educador logado
+            const meusAlunos = window.todosEducandosBD.filter(a => a.educadorResponsavel === userName || !a.educadorResponsavel); 
             const tabela = document.getElementById("tabelaAlunos");
             
             if (tabela) {
@@ -195,7 +202,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 meusAlunos.forEach((aluno, index) => {
                     const qtdVendidos = aluno.lotesVendidos.length;
                     const cartelasExtras = qtdVendidos >= 2 ? (qtdVendidos - 1) : 0;
-                    const cartelasHTML = cartelasExtras > 0 ? `<div class="flex-center" style="font-weight:bold; color:var(--sunflower-gold);">${cartelasExtras} <span class="material-symbols-outlined icon-filled" style="font-variation-settings: 'FILL' 1; font-size: 1.2rem;">description</span></div>` : '-';
+                    const cartelasHTML = cartelasExtras > 0 ? `<div class="flex-center" style="font-weight:bold; color:var(--sunflower-gold);">${cartelasExtras} <span class="material-symbols-outlined icon-filled" style="font-size: 1.2rem;">description</span></div>` : '-';
                     const foneHTML = qtdVendidos >= 2 ? '<span class="material-symbols-outlined" style="color:var(--petal-pink);">headphones</span>' : '-';
 
                     tabela.innerHTML += `
@@ -212,19 +219,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
             }
 
-            // Atualiza o select de alunos no modal de Atribuir Lote
-            const selectAlunoAtribuir = document.getElementById("selectAlunoAtribuir");
+            // Popula os selects com os alunos dinamicamente
+            const selectAlunoAtribuir = document.getElementById("alunoAtribuirSelect");
             if (selectAlunoAtribuir) {
-                let optionsHtml = '<span class="custom-option selected" data-value="">Selecione...</span>';
-                meusAlunos.forEach(a => { optionsHtml += `<span class="custom-option" data-value="${a.nome}">${a.nome}</span>`; });
+                let optionsHtml = '<option value="">Escolha um aluno da sua turma...</option>';
+                meusAlunos.forEach(a => { optionsHtml += `<option value="${a.nome}">${a.nome}</option>`; });
                 selectAlunoAtribuir.innerHTML = optionsHtml;
             }
         };
 
-        // Modal Cadastrar Educando
-        const btnNovoEducando = document.getElementById("btnNovoEducando");
-        if(btnNovoEducando) btnNovoEducando.addEventListener("click", () => abrirModal('modalCadastrarEducando'));
-
+        // SUBMIT: CADASTRAR EDUCANDO (Com regras de Período e Foto)
         const formCadastrarEducando = document.getElementById("formCadastrarEducando");
         if(formCadastrarEducando) {
             formCadastrarEducando.addEventListener("submit", (e) => {
@@ -232,58 +236,77 @@ document.addEventListener("DOMContentLoaded", () => {
                 const btn = formCadastrarEducando.querySelector("button[type='submit']");
                 btn.innerText = "Salvando Foto (Aguarde)..."; btn.disabled = true;
 
-                const nome = document.getElementById("nomeEducando").value;
-                const curso = document.getElementById("cursoEducandoVal") ? document.getElementById("cursoEducandoVal").value : document.getElementById("cursoEducando").value; 
-                const turma = document.getElementById("turmaEducando").value;
-                const periodoRadios = document.querySelector('input[name="periodo"]:checked');
-                const periodo = periodoRadios ? periodoRadios.value : "Manhã";
+                const nome = document.getElementById("nomeSelectEducando").value;
+                const turmaTexto = document.getElementById("turmaSelectEducando").value; 
                 
-                const fotoFile = document.getElementById("fotoEducando") ? document.getElementById("fotoEducando").files[0] : null;
+                if(!nome || !turmaTexto) {
+                    btn.innerText = "Salvar Educando"; btn.disabled = false;
+                    return window.abrirModalErro("Preencha o nome e a turma do educando.");
+                }
+
+                // Regra Automática: Turma 1/2 = Manhã | Turma 3/4 = Tarde
+                let periodo = "Manhã";
+                if(turmaTexto === "Turma 3" || turmaTexto === "Turma 4") periodo = "Tarde";
+
+                const fotoFile = document.getElementById("inputFotoEducando").files[0];
                 let fotoBase64 = "";
+
+                // Buscar o curso do educador na base para atrelar ao aluno
+                const meuPerfil = window.mockEducadoresBD.find(ed => ed.nome === userName);
+                const meuCurso = meuPerfil ? meuPerfil.curso : "Curso Padrão";
 
                 const enviarParaBanco = () => {
                     fetch(SCRIPT_URL, {
                         method: 'POST',
                         body: JSON.stringify({
                             action: 'cadastrar_educando',
-                            nome: nome, curso: curso, turma: turma, periodo: periodo,
+                            nome: nome, 
+                            curso: meuCurso, 
+                            turma: turmaTexto, 
+                            periodo: periodo,
                             educadorResponsavel: userName,
                             fotoBase64: fotoBase64
                         })
                     })
                     .then(res => res.json())
                     .then(data => {
-                        btn.innerText = "Salvar Cadastro"; btn.disabled = false;
+                        btn.innerText = "Salvar Educando"; btn.disabled = false;
                         if(data.success) {
                             fecharModal('modalCadastrarEducando');
                             formCadastrarEducando.reset();
+                            // Reseta a elipse da foto
+                            document.getElementById('previewFoto').style.display = 'none';
+                            document.getElementById('iconCamera').style.display = 'block';
+                            
                             window.abrirModalSucesso(data.message);
                             window.carregarDadosDoBanco();
                         } else { window.abrirModalErro(data.message); }
-                    }).catch(() => { btn.disabled = false; btn.innerText = "Salvar Cadastro"; window.abrirModalErro("Falha na conexão."); });
+                    }).catch(() => { btn.disabled = false; btn.innerText = "Salvar Educando"; window.abrirModalErro("Falha na conexão."); });
                 };
 
                 if (fotoFile) {
                     const reader = new FileReader();
                     reader.onloadend = function() { fotoBase64 = reader.result; enviarParaBanco(); }
                     reader.readAsDataURL(fotoFile);
-                } else { enviarParaBanco(); }
+                } else { enviarParaBanco(); } // Se não upar foto, vai sem foto
             });
         }
 
-        // Modal Atribuir Lote
-        const btnMenuAtribuirLote = document.getElementById("btnMenuAtribuirLote");
-        if(btnMenuAtribuirLote) btnMenuAtribuirLote.addEventListener("click", () => abrirModal('modalAtribuirLote'));
-
+        // SUBMIT: ATRIBUIR LOTE (Checkboxes Roxos)
         const formAtribuirLote = document.getElementById("formAtribuirLote");
         if(formAtribuirLote) {
             formAtribuirLote.addEventListener("submit", (e) => {
                 e.preventDefault();
-                const alunoInput = document.getElementById("alunoAtribuirVal") ? document.getElementById("alunoAtribuirVal").value : "";
-                const lotesInput = document.getElementById("lotesAtribuir").value;
-                const lotesArray = lotesInput.split(',').map(l => l.trim().toUpperCase()).filter(Boolean);
+                
+                const alunoInput = document.getElementById("alunoAtribuirSelect").value;
+                
+                // Pega todos os valores dos checkboxes que o usuário clicou
+                const checkboxesMarcados = document.querySelectorAll('#listaLotesCheckboxes input[type="checkbox"]:checked');
+                const lotesArray = Array.from(checkboxesMarcados).map(cb => cb.value);
 
-                if(!alunoInput || lotesArray.length === 0) return window.abrirModalErro("Selecione o aluno e digite os lotes válidos.");
+                if(!alunoInput || lotesArray.length === 0) {
+                    return window.abrirModalErro("Selecione o aluno e marque pelo menos um lote na lista.");
+                }
 
                 const btn = formAtribuirLote.querySelector("button[type='submit']");
                 btn.innerText = "Atribuindo..."; btn.disabled = true;
@@ -299,7 +322,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         fecharModal('modalAtribuirLote');
                         formAtribuirLote.reset();
                         window.abrirModalSucesso("Lotes atribuídos com sucesso ao aluno " + alunoInput + "!");
-                        window.carregarDadosDoBanco();
+                        window.carregarDadosDoBanco(); // Puxa os dados atualizados para mostrar na tabela
                     } else { window.abrirModalErro(data.message); }
                 }).catch(err => { btn.disabled = false; btn.innerText = "Confirmar Atribuição"; window.abrirModalErro("Erro de conexão."); });
             });
@@ -307,7 +330,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
-    // 6. INICIALIZAÇÃO TELA ADM E GRÁFICOS
+    // 6. LÓGICA DO PAINEL DE ADMINISTRAÇÃO (Diretoria)
     // ==========================================
     const adminPage = document.getElementById("adminPage");
     let estoqueChartInst = null; let financeiroChartInst = null;
@@ -341,13 +364,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const btnMenuTransferir = document.getElementById("btnMenuTransferir");
         if(btnMenuTransferir) btnMenuTransferir.addEventListener("click", () => {
             const listaLotesSede = document.getElementById("listaLotesSede");
-            if(listaLotesSede) { listaLotesSede.innerHTML = `<label class="checkbox-item"><input type="checkbox" value="WEB-100" class="lote-transferir-checkbox"> WEB-100</label><label class="checkbox-item"><input type="checkbox" value="WEB-101" class="lote-transferir-checkbox"> WEB-101</label>`; }
+            if(listaLotesSede) { 
+                listaLotesSede.innerHTML = `<label class="checkbox-item"><input type="checkbox" value="WEB-100" class="lote-transferir-checkbox"> WEB-100</label><label class="checkbox-item"><input type="checkbox" value="WEB-101" class="lote-transferir-checkbox"> WEB-101</label>`; 
+            }
             abrirModal('modalTransferirLote');
         });
 
         const btnNovoEducador = document.getElementById("btnNovoEducador");
         if(btnNovoEducador) btnNovoEducador.addEventListener("click", () => abrirModal('modalCadastrarEducador'));
 
+        // Libera botão de transferir apenas se marcar lote e escolher destino
         document.addEventListener('change', (e) => {
             if(e.target.classList.contains('lote-transferir-checkbox') || e.target.id === 'educadorDestinoVal') {
                 const btn = document.getElementById("btnConfirmarTransferencia");
@@ -379,6 +405,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if(document.getElementById('kpiProjecaoGlobal')) document.getElementById('kpiProjecaoGlobal').innerText = `R$ ${vPendentes.toFixed(2).replace('.', ',')}`;
             if(document.getElementById('kpiLotesRua')) document.getElementById('kpiLotesRua').innerText = totalPendentes;
 
+            // Gráficos
             const ctxEst = document.getElementById('estoqueChart');
             if (ctxEst && ctxEst.offsetParent !== null) { 
                 if (!estoqueChartInst) estoqueChartInst = new Chart(ctxEst.getContext('2d'), { type: 'doughnut', data: { labels: ['Válidos', 'Pendentes', 'Estoque'], datasets: [{ data: [totalVendidos, totalPendentes, 440], backgroundColor: ['#BC68A1', '#F4B841', '#e0e0e0'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false } });
@@ -391,6 +418,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 else { financeiroChartInst.data.datasets[0].data = [vVendas, vPendentes]; financeiroChartInst.update(); }
             }
 
+            // Engajamento
             const selectFiltro = document.getElementById('filtroCursoEngajamento');
             const cursoFiltro = selectFiltro ? selectFiltro.value : "Todos";
             let totalEng = 0, ativos = 0, inativos = 0, aM = 0, aT = 0, iM = 0, iT = 0; let htmlListaEng = "";
@@ -413,6 +441,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if(document.getElementById('kpiTotalAlunos')) document.getElementById('kpiTotalAlunos').innerText = `De ${totalEng} alunos`;
             if(document.getElementById('tabelaEngajamentoAlunos')) document.getElementById('tabelaEngajamentoAlunos').innerHTML = htmlListaEng;
 
+            // Validação de Lotes Pendentes
             let htmlGestao = "";
             window.todosEducandosBD.forEach((aluno, indexOrig) => {
                 if (aluno.lotesPendentes.length > 0) {
@@ -421,6 +450,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             if(document.getElementById('tabelaGestaoLotes')) document.getElementById('tabelaGestaoLotes').innerHTML = htmlGestao || `<tr><td colspan="4" class="text-center" style="padding: 2rem; color: #a0a0a0;">Nenhum lote pendente.</td></tr>`;
 
+            // Controle de Parceiros
             if(document.getElementById('tabelaParceiros')) {
                 let arrParc = 0, projParc = 0; let htmlParceiros = "";
                 window.mockParceirosBD.forEach((p, idx) => {
@@ -434,6 +464,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if(document.getElementById('kpiParceirosProjetado')) document.getElementById('kpiParceirosProjetado').innerText = `R$ ${projParc.toFixed(2).replace('.',',')}`;
             }
 
+            // Logs / Auditoria
             if(document.getElementById('tabelaLogs')) {
                 document.getElementById('tabelaLogs').innerHTML = window.logsDoSistema.map(log => `
                     <tr style="border-bottom: 1px solid #eee;">
@@ -450,7 +481,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
-    // 7. FUNÇÕES GLOBAIS DE MODAIS
+    // 7. FUNÇÕES GLOBAIS DE MODAIS E TRANSAÇÕES
     // ==========================================
     window.abrirModal = function(id) { document.getElementById(id).classList.add('active'); }
     window.fecharModal = function(id) { document.getElementById(id).classList.remove('active'); }
@@ -460,6 +491,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.toggleMisto = function(mostrar) { document.getElementById('camposMisto').style.display = mostrar ? 'flex' : 'none'; }
     window.toggleMistoParc = function(mostrar) { document.getElementById('camposMistoParc').style.display = mostrar ? 'flex' : 'none'; }
 
+    // Ficha de Detalhes do Aluno
     window.abrirDetalhesAluno = function(idx) {
         const isAdmin = document.getElementById('adminPage') !== null;
         const aluno = window.todosEducandosBD[idx]; 
@@ -476,6 +508,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         let badgePendentes = '<span class="badge-lote vazio">Nenhum</span>';
         if(aluno.lotesPendentes.length) {
+            // Se for ADM, clica no lote para validar pagamento. Se for educador, apenas visualiza.
             if(isAdmin) {
                 document.getElementById('msgCliquePendente').style.display = 'block';
                 badgePendentes = aluno.lotesPendentes.map(l => `<span class="badge-lote" style="border: 1px dashed var(--sunflower-gold); cursor:pointer;" title="Gerenciar Lote" onclick="abrirAcaoLote('${l}', ${idx}); event.stopPropagation();">${l} ⚙️</span>`).join('');
@@ -496,7 +529,7 @@ document.addEventListener("DOMContentLoaded", () => {
         abrirModal('modalDetalhesAluno');
     }
 
-    // Modal de Ação do Lote (UI)
+    // Modal de Ação do Lote (Para ADM Validar a Venda)
     window.abrirAcaoLote = function(lote, idxAluno) {
         const aluno = window.todosEducandosBD[idxAluno];
         document.getElementById('acaoLoteNome').innerText = lote;
@@ -514,6 +547,7 @@ document.addEventListener("DOMContentLoaded", () => {
         abrirModal('modalAcaoLote');
     }
 
+    // Front-end Venda Lote (Para fins de teste de tela, a requisição no backend pode ser acoplada aqui futuramente)
     window.confirmarVendaLote = function() {
         const lote = document.getElementById('acaoLoteInput').value;
         const idx = document.getElementById('acaoAlunoIdxInput').value;
@@ -527,7 +561,7 @@ document.addEventListener("DOMContentLoaded", () => {
         else {
             vPix = parseFloat(document.getElementById('valorPixMisto').value) || 0;
             vDin = parseFloat(document.getElementById('valorDinMisto').value) || 0;
-            if (vPix + vDin !== 20.00) return alert(`A soma deve dar exatamente R$ 20,00.`);
+            if (vPix + vDin !== 20.00) return window.abrirModalErro(`A soma deve dar exatamente R$ 20,00.`);
         }
 
         window.caixaGlobal.pixReais += vPix; window.caixaGlobal.dinReais += vDin;
