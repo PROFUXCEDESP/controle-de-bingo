@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
     
     // ==========================================
-    // FUNÇÃO MÁGICA: IGNORA ACENTOS E LETRAS MAIÚSCULAS
+    // FUNÇÃO MÁGICA: IGNORA ACENTOS E MAIÚSCULAS
     // ==========================================
     function textoIgual(t1, t2) {
         if(!t1 || !t2) return false;
@@ -18,52 +18,34 @@ document.addEventListener("DOMContentLoaded", () => {
     window.mockParceirosBD = []; window.lotesSedeBD = []; window.logsDoSistema = [];
 
     // ==========================================
-    // CONTROLE DOS BOTÕES ROXOS (CUSTOM SELECT)
+    // GESTÃO BLINDADA DAS ABAS DO EDUCADOR
     // ==========================================
-    window.bindOptionClick = function(e) {
-        const option = e.currentTarget;
-        const wrapperNode = option.closest('.custom-select-wrapper');
-        if (!wrapperNode) return;
-        const select = wrapperNode.querySelector('.custom-select');
-        const triggerText = wrapperNode.querySelector('.trigger-text');
-        const hiddenInput = wrapperNode.querySelector('input[type="hidden"]');
-        
-        triggerText.textContent = option.textContent;
-        hiddenInput.value = option.getAttribute('data-value');
-        
-        wrapperNode.querySelectorAll('.custom-option').forEach(opt => opt.classList.remove('selected'));
-        option.classList.add('selected');
-        select.classList.remove('open');
-        triggerText.style.color = "var(--dim-grey)"; 
-        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
-        e.stopPropagation();
-    }
-
-    function ativarEventosSelectCustomizado(wrapperNode) {
-        const options = wrapperNode.querySelectorAll('.custom-option');
-        options.forEach(option => {
-            option.removeEventListener('click', window.bindOptionClick);
-            option.addEventListener('click', window.bindOptionClick);
+    window.mudarAbaEducador = function(secId, navId) {
+        // Esconde todas as seções
+        ['secMinhaTurma', 'secVendasGeral', 'secRankingEducandos'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.display = 'none';
         });
+        // Tira o roxo de todos os botões do menu
+        ['navMinhaTurma', 'navVendasGeral', 'navRankingEducandos'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.classList.remove('active');
+        });
+
+        // Ativa apenas a seção e o botão clicado
+        document.getElementById(secId).style.display = 'block';
+        document.getElementById(navId).classList.add('active');
+
+        // Se estiver no celular, esconde o menu lateral automaticamente
+        if(window.innerWidth <= 768) {
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        // Atualiza as tabelas com os dados mais recentes
+        if(window.atualizarDashboardEducador) window.atualizarDashboardEducador();
     }
 
-    const customSelectWrappers = document.querySelectorAll('.custom-select-wrapper');
-    customSelectWrappers.forEach(wrapper => {
-        const select = wrapper.querySelector('.custom-select');
-        const trigger = wrapper.querySelector('.custom-select-trigger');
-        if(trigger) {
-            trigger.addEventListener('click', (e) => {
-                document.querySelectorAll('.custom-select').forEach(s => { if (s !== select) s.classList.remove('open'); });
-                select.classList.toggle('open');
-                e.stopPropagation();
-            });
-            ativarEventosSelectCustomizado(wrapper);
-        }
-    });
-
-    window.addEventListener('click', () => { document.querySelectorAll('.custom-select').forEach(s => s.classList.remove('open')); });
-
-    // Sidebar
+    // Sidebar Mobile Trigger
     const sidebar = document.getElementById('sidebar');
     const openSidebarBtn = document.getElementById('openSidebar');
     const closeSidebarBtn = document.getElementById('closeSidebar');
@@ -73,7 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
-    // CARGA DE DADOS
+    // CARGA DE DADOS DO GOOGLE SHEETS
     // ==========================================
     window.carregarDadosDoBanco = function(recarregarTelas = true) {
         const btnSync = document.getElementById('nomeEducador');
@@ -128,7 +110,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (typeof gsap !== 'undefined') gsap.from(".login-container", { y: 40, opacity: 0, duration: 0.8, ease: "power3.out" });
         loginForm.addEventListener("submit", (e) => {
             e.preventDefault(); 
-            const educador = document.getElementById('educadorSelect') ? document.getElementById('educadorSelect').value : null;
+            const educadorInput = document.getElementById('educadorSelect') || document.querySelector('input[type="hidden"]');
+            const educador = educadorInput ? educadorInput.value : null;
             const senha = document.getElementById("senhaInput").value;
 
             if(!educador || senha.length !== 6) return window.abrirModalErro("Selecione seu nome e digite 6 números.");
@@ -154,22 +137,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (educadorPage) {
         document.getElementById('nomeEducador').innerText = userName;
         window.carregarDadosDoBanco();
-
-        const tabsEducador = {
-            minhaTurma: { nav: document.getElementById('navMinhaTurma'), sec: document.getElementById('secMinhaTurma') },
-            vendasGeral: { nav: document.getElementById('navVendasGeral'), sec: document.getElementById('secVendasGeral') },
-            ranking: { nav: document.getElementById('navRankingEducandos'), sec: document.getElementById('secRankingEducandos') }
-        };
-
-        function resetTabsEducador() { Object.values(tabsEducador).forEach(tab => { if(tab.nav) tab.nav.classList.remove('active'); if(tab.sec) tab.sec.style.display = 'none'; }); }
-        Object.values(tabsEducador).forEach(tab => {
-            if(tab.nav) {
-                tab.nav.addEventListener('click', () => { 
-                    resetTabsEducador(); tab.nav.classList.add('active'); tab.sec.style.display = 'block'; 
-                    window.atualizarDashboardEducador();
-                });
-            }
-        });
 
         window.iniciarCorteFoto = function(event) {
             const input = event.target;
@@ -202,7 +169,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         window.atualizarDashboardEducador = function() {
-            // AQUI USAMOS A FUNÇÃO MÁGICA PARA COMPARAR (ex: Jéssica == Jessica)
+            // Filtro seguro via textoIgual()
             const meusAlunos = window.todosEducandosBD.filter(a => textoIgual(a.educadorResponsavel, userName)); 
             
             const tabela = document.getElementById("tabelaAlunos");
@@ -235,44 +202,42 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
             }
 
-            // MODAL CADASTRO (SELECT ROXO DINÂMICO)
-            const opcoesNomeEducando = document.getElementById("opcoesNomeEducando");
-            const wrapperNome = document.getElementById("wrapperNomeEducando");
-            if(opcoesNomeEducando && wrapperNome) {
-                let optsCad = '';
-                const meusAlunosSemFoto = meusAlunos.filter(a => a.foto.includes('ui-avatars'));
-                if (meusAlunosSemFoto.length === 0) {
-                    optsCad = '<span class="custom-option" data-value="">Nenhum aluno sem foto</span>';
+            // ==========================================
+            // PREENCHIMENTO DOS SELECTS DOS MODAIS
+            // ==========================================
+            const selectNomeCadastro = document.getElementById("nomeSelectEducando");
+            if(selectNomeCadastro) {
+                let optsCad = '<option value="">Selecione o aluno da sua lista...</option>';
+                // AQUI FOI CORRIGIDO: Vai mostrar TODOS os alunos atrelados a Jéssica!
+                if (meusAlunos.length === 0) {
+                    optsCad += '<option value="" disabled>Nenhum aluno atrelado a você no Banco.</option>';
                 } else {
-                    meusAlunosSemFoto.forEach(a => { optsCad += `<span class="custom-option" data-value="${a.nome}">${a.nome} (${a.turma})</span>`; });
+                    meusAlunos.forEach(a => { 
+                        let avisoFoto = a.foto.includes('ui-avatars') ? " (Sem Foto)" : "";
+                        optsCad += `<option value="${a.nome}">${a.nome}${avisoFoto}</option>`; 
+                    });
                 }
-                opcoesNomeEducando.innerHTML = optsCad;
-                wrapperNome.querySelector('.trigger-text').textContent = "Selecione o aluno da lista...";
-                wrapperNome.querySelector('input[type="hidden"]').value = "";
-                ativarEventosSelectCustomizado(wrapperNome);
+                selectNomeCadastro.innerHTML = optsCad;
             }
 
             const listaLotes = document.getElementById("listaLotesCheckboxes");
             if(listaLotes) {
                 let htmlLotes = '';
-                window.lotesSedeBD.forEach(lote => { htmlLotes += `<label style="display:block; padding:5px;"><input type="checkbox" class="roxo-checkbox" value="${lote}"> ${lote}</label>`; });
-                listaLotes.innerHTML = htmlLotes || '<span style="color:#a0a0a0;">Nenhum lote liberado da Sede.</span>';
+                window.lotesSedeBD.forEach(lote => { 
+                    htmlLotes += `<label class="checkbox-item-row"><input type="checkbox" class="roxo-checkbox" value="${lote}"> <span style="color: var(--dim-grey); font-weight: 500;">${lote}</span></label>`; 
+                });
+                listaLotes.innerHTML = htmlLotes || '<div style="padding: 15px; color:#a0a0a0; text-align:center;">Nenhum lote liberado da Sede.</div>';
             }
 
-            // MODAL ATRIBUIR LOTE (SELECT ROXO DINÂMICO)
-            const opcoesAlunoAtribuir = document.getElementById("opcoesAlunoAtribuir");
-            const wrapperAttr = document.getElementById("wrapperAlunoAtribuir");
-            if (opcoesAlunoAtribuir && wrapperAttr) {
-                let optsAttr = '';
-                if (meusAlunos.length === 0) {
-                    optsAttr = '<span class="custom-option" data-value="">Nenhum aluno na turma</span>';
+            const selectAlunoAtribuir = document.getElementById("alunoAtribuirSelect");
+            if (selectAlunoAtribuir) {
+                let optsAttr = '<option value="">Escolha um aluno da sua turma...</option>';
+                if(meusAlunos.length === 0) {
+                    optsAttr += '<option value="" disabled>Nenhum aluno atrelado a você.</option>';
                 } else {
-                    meusAlunos.forEach(a => { optsAttr += `<span class="custom-option" data-value="${a.nome}">${a.nome}</span>`; });
+                    meusAlunos.forEach(a => { optsAttr += `<option value="${a.nome}">${a.nome}</option>`; });
                 }
-                opcoesAlunoAtribuir.innerHTML = optsAttr;
-                wrapperAttr.querySelector('.trigger-text').textContent = "Escolha um aluno da sua turma...";
-                wrapperAttr.querySelector('input[type="hidden"]').value = "";
-                ativarEventosSelectCustomizado(wrapperAttr);
+                selectAlunoAtribuir.innerHTML = optsAttr;
             }
         };
 
@@ -352,6 +317,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if(tab.nav) {
                 tab.nav.addEventListener('click', () => { 
                     resetTabs(); tab.nav.classList.add('active'); tab.sec.style.display = 'block'; 
+                    if(window.innerWidth <= 768) { sidebar.classList.remove('open'); }
                     if(tab.nav.id === 'navVisaoGeral') window.atualizarDashboardsADM();
                 });
             }
@@ -407,7 +373,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
-    // MODAIS DE DETALHE E INTERFACE OTIMISTA
+    // MODAIS GENÉRICOS E TRANSAÇÕES
     // ==========================================
     window.abrirModal = function(id) { document.getElementById(id).classList.add('active'); }
     window.fecharModal = function(id) { document.getElementById(id).classList.remove('active'); }
