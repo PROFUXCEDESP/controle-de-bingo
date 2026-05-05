@@ -1,14 +1,67 @@
 document.addEventListener("DOMContentLoaded", () => {
     
-    // URL DA API
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWD-pi7qf1Vlp01I8CO-7euJmqsNureruSEjeFc9bdYUZ_M13he6bqBC_ctJGHUpc4ow/exec'; 
+    // ==========================================
+    // FUNÇÃO MÁGICA: IGNORA ACENTOS E LETRAS MAIÚSCULAS
+    // ==========================================
+    function textoIgual(t1, t2) {
+        if(!t1 || !t2) return false;
+        return t1.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() === 
+               t2.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+    }
 
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWD-pi7qf1Vlp01I8CO-7euJmqsNureruSEjeFc9bdYUZ_M13he6bqBC_ctJGHUpc4ow/exec'; 
     const userName = localStorage.getItem('usuarioLogado') || 'Administrador';
     
     window.fotoBase64Global = ""; let cropperInstancia = null;
     window.caixaGlobal = { pixReais: 0.00, dinReais: 0.00 };
     window.todosEducandosBD = []; window.mockEducadoresBD = [];
     window.mockParceirosBD = []; window.lotesSedeBD = []; window.logsDoSistema = [];
+
+    // ==========================================
+    // CONTROLE DOS BOTÕES ROXOS (CUSTOM SELECT)
+    // ==========================================
+    window.bindOptionClick = function(e) {
+        const option = e.currentTarget;
+        const wrapperNode = option.closest('.custom-select-wrapper');
+        if (!wrapperNode) return;
+        const select = wrapperNode.querySelector('.custom-select');
+        const triggerText = wrapperNode.querySelector('.trigger-text');
+        const hiddenInput = wrapperNode.querySelector('input[type="hidden"]');
+        
+        triggerText.textContent = option.textContent;
+        hiddenInput.value = option.getAttribute('data-value');
+        
+        wrapperNode.querySelectorAll('.custom-option').forEach(opt => opt.classList.remove('selected'));
+        option.classList.add('selected');
+        select.classList.remove('open');
+        triggerText.style.color = "var(--dim-grey)"; 
+        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+        e.stopPropagation();
+    }
+
+    function ativarEventosSelectCustomizado(wrapperNode) {
+        const options = wrapperNode.querySelectorAll('.custom-option');
+        options.forEach(option => {
+            option.removeEventListener('click', window.bindOptionClick);
+            option.addEventListener('click', window.bindOptionClick);
+        });
+    }
+
+    const customSelectWrappers = document.querySelectorAll('.custom-select-wrapper');
+    customSelectWrappers.forEach(wrapper => {
+        const select = wrapper.querySelector('.custom-select');
+        const trigger = wrapper.querySelector('.custom-select-trigger');
+        if(trigger) {
+            trigger.addEventListener('click', (e) => {
+                document.querySelectorAll('.custom-select').forEach(s => { if (s !== select) s.classList.remove('open'); });
+                select.classList.toggle('open');
+                e.stopPropagation();
+            });
+            ativarEventosSelectCustomizado(wrapper);
+        }
+    });
+
+    window.addEventListener('click', () => { document.querySelectorAll('.custom-select').forEach(s => s.classList.remove('open')); });
 
     // Sidebar
     const sidebar = document.getElementById('sidebar');
@@ -42,18 +95,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 window.mockEducadoresBD = data.educadores.map(e => {
                     let vendidos = 0; let pendentes = 0;
                     window.todosEducandosBD.forEach(al => {
-                        if(al.curso === e['Curso Responsavel'] || al.educadorResponsavel === e['Nome']) {
+                        if(textoIgual(al.educadorResponsavel, e['Nome'])) {
                             vendidos += al.lotesVendidos.length; pendentes += al.lotesPendentes.length;
                         }
                     });
                     return { nome: e['Nome'], curso: e['Curso Responsavel'], lotesRetiradosSede: parseInt(e['Lotes Retirados Sede']) || 0, lotesVendidos: vendidos, lotesPendentes: pendentes };
                 });
-
-                window.mockParceirosBD = data.parceiros.map(p => ({
-                    nome: p['Nome do Parceiro'] || p['Nome_Responsavel'], lotes: parseInt(p['Qtd Lotes'] || p['Lote_Parceiro']) || 15,
-                    pago: p['Status'] === 'Pago' || p['Status_Pagamento'] === 'Pago',
-                    pagPix: parseFloat(p['Valor PIX'] || p['Valor_PIX']) || 0, pagDin: parseFloat(p['Valor Dinheiro'] || p['Valor_Dinheiro']) || 0
-                }));
 
                 window.caixaGlobal = { pixReais: 0, dinReais: 0 };
                 if (data.caixaGlobal) {
@@ -155,8 +202,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         window.atualizarDashboardEducador = function() {
-            // Filtra alunos pelo nome do educador preenchido no Banco
-            const meusAlunos = window.todosEducandosBD.filter(a => a.educadorResponsavel === userName); 
+            // AQUI USAMOS A FUNÇÃO MÁGICA PARA COMPARAR (ex: Jéssica == Jessica)
+            const meusAlunos = window.todosEducandosBD.filter(a => textoIgual(a.educadorResponsavel, userName)); 
             
             const tabela = document.getElementById("tabelaAlunos");
             if (tabela) {
@@ -169,7 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
             }
 
-            const meuPerfil = window.mockEducadoresBD.find(e => e.nome === userName);
+            const meuPerfil = window.mockEducadoresBD.find(e => textoIgual(e.nome, userName));
             if(meuPerfil) {
                 const disponivel = meuPerfil.lotesRetiradosSede - (meuPerfil.lotesVendidos + meuPerfil.lotesPendentes);
                 if(document.getElementById('kpiEducadorVendidos')) document.getElementById('kpiEducadorVendidos').innerText = meuPerfil.lotesVendidos;
@@ -182,19 +229,27 @@ document.addEventListener("DOMContentLoaded", () => {
                 tabelaRanking.innerHTML = "";
                 let rankingGeral = [...window.todosEducandosBD].filter(a => a.lotesVendidos.length > 0).sort((a, b) => b.lotesVendidos.length - a.lotesVendidos.length);
                 rankingGeral.forEach((aluno, index) => {
-                    const destaque = aluno.educadorResponsavel === userName ? 'background-color: rgba(188, 104, 161, 0.05);' : '';
-                    const tagMeu = aluno.educadorResponsavel === userName ? ' <span style="font-size:0.7rem; background:var(--petal-pink); color:white; padding:2px 4px; border-radius:4px;">Seu Aluno</span>' : '';
+                    const destaque = textoIgual(aluno.educadorResponsavel, userName) ? 'background-color: rgba(188, 104, 161, 0.05);' : '';
+                    const tagMeu = textoIgual(aluno.educadorResponsavel, userName) ? ' <span style="font-size:0.7rem; background:var(--petal-pink); color:white; padding:2px 4px; border-radius:4px;">Seu Aluno</span>' : '';
                     tabelaRanking.innerHTML += `<tr style="${destaque}"><td class="td-center" style="font-weight: bold;">${index + 1}</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong>${aluno.nome}</strong>${tagMeu}</td><td>${aluno.turma}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center">${aluno.lotesPendentes.length}</td></tr>`;
                 });
             }
 
-            // MODAL DE CADASTRO: Mostra os alunos DESTE educador que AINDA NÃO TEM FOTO REAL
-            const selectNomeCadastro = document.getElementById("nomeSelectEducando");
-            if(selectNomeCadastro) {
-                let optsCad = '<option value="">Selecione o aluno da sua turma...</option>';
+            // MODAL CADASTRO (SELECT ROXO DINÂMICO)
+            const opcoesNomeEducando = document.getElementById("opcoesNomeEducando");
+            const wrapperNome = document.getElementById("wrapperNomeEducando");
+            if(opcoesNomeEducando && wrapperNome) {
+                let optsCad = '';
                 const meusAlunosSemFoto = meusAlunos.filter(a => a.foto.includes('ui-avatars'));
-                meusAlunosSemFoto.forEach(a => { optsCad += `<option value="${a.nome}">${a.nome} (${a.turma})</option>`; });
-                selectNomeCadastro.innerHTML = optsCad;
+                if (meusAlunosSemFoto.length === 0) {
+                    optsCad = '<span class="custom-option" data-value="">Nenhum aluno sem foto</span>';
+                } else {
+                    meusAlunosSemFoto.forEach(a => { optsCad += `<span class="custom-option" data-value="${a.nome}">${a.nome} (${a.turma})</span>`; });
+                }
+                opcoesNomeEducando.innerHTML = optsCad;
+                wrapperNome.querySelector('.trigger-text').textContent = "Selecione o aluno da lista...";
+                wrapperNome.querySelector('input[type="hidden"]').value = "";
+                ativarEventosSelectCustomizado(wrapperNome);
             }
 
             const listaLotes = document.getElementById("listaLotesCheckboxes");
@@ -204,11 +259,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 listaLotes.innerHTML = htmlLotes || '<span style="color:#a0a0a0;">Nenhum lote liberado da Sede.</span>';
             }
 
-            const selectAlunoAtribuir = document.getElementById("alunoAtribuirSelect");
-            if (selectAlunoAtribuir) {
-                let optsAttr = '<option value="">Escolha um aluno da sua turma...</option>';
-                meusAlunos.forEach(a => { optsAttr += `<option value="${a.nome}">${a.nome}</option>`; });
-                selectAlunoAtribuir.innerHTML = optsAttr;
+            // MODAL ATRIBUIR LOTE (SELECT ROXO DINÂMICO)
+            const opcoesAlunoAtribuir = document.getElementById("opcoesAlunoAtribuir");
+            const wrapperAttr = document.getElementById("wrapperAlunoAtribuir");
+            if (opcoesAlunoAtribuir && wrapperAttr) {
+                let optsAttr = '';
+                if (meusAlunos.length === 0) {
+                    optsAttr = '<span class="custom-option" data-value="">Nenhum aluno na turma</span>';
+                } else {
+                    meusAlunos.forEach(a => { optsAttr += `<span class="custom-option" data-value="${a.nome}">${a.nome}</span>`; });
+                }
+                opcoesAlunoAtribuir.innerHTML = optsAttr;
+                wrapperAttr.querySelector('.trigger-text').textContent = "Escolha um aluno da sua turma...";
+                wrapperAttr.querySelector('input[type="hidden"]').value = "";
+                ativarEventosSelectCustomizado(wrapperAttr);
             }
         };
 
@@ -220,20 +284,23 @@ document.addEventListener("DOMContentLoaded", () => {
                 btn.innerText = "Salvando (Aguarde)..."; btn.disabled = true;
 
                 const nome = document.getElementById("nomeSelectEducando").value;
-                if(!nome) {
+                const turmaTexto = document.getElementById("turmaSelectEducando").value; 
+                let periodo = (turmaTexto === "Turma 3" || turmaTexto === "Turma 4") ? "Tarde" : "Manhã";
+
+                if(!nome || !turmaTexto) {
                     btn.disabled = false; btn.innerText = "Ativar Educando";
-                    return window.abrirModalErro("Por favor, selecione o aluno.");
+                    return window.abrirModalErro("Por favor, preencha todos os campos da lista.");
                 }
 
                 fetch(SCRIPT_URL, {
                     method: 'POST',
-                    body: JSON.stringify({ action: 'cadastrar_educando', nome: nome, fotoBase64: window.fotoBase64Global })
+                    body: JSON.stringify({ action: 'cadastrar_educando', nome: nome, turma: turmaTexto, periodo: periodo, educadorResponsavel: userName, fotoBase64: window.fotoBase64Global })
                 }).then(res => res.json()).then(data => {
                     btn.innerText = "Ativar Educando"; btn.disabled = false;
                     if(data.success) {
                         fecharModal('modalCadastrarEducando'); formCadastrarEducando.reset();
                         window.fotoBase64Global = ""; document.getElementById('previewFoto').style.display = 'none'; document.getElementById('iconCamera').style.display = 'block';
-                        window.abrirModalSucesso("Foto vinculada com sucesso!"); window.carregarDadosDoBanco();
+                        window.abrirModalSucesso(data.message); window.carregarDadosDoBanco();
                     } else { window.abrirModalErro(data.message); }
                 }).catch(() => { btn.disabled = false; btn.innerText = "Ativar Educando"; window.abrirModalErro("Erro de rede."); });
             });
@@ -398,7 +465,6 @@ document.addEventListener("DOMContentLoaded", () => {
         fecharModal('modalDetalhesAluno'); abrirModal('modalAcaoLote');
     }
 
-    // INTERFACE OTIMISTA (AÇÃO IMEDIATA)
     window.confirmarVendaLote = function() {
         const lote = document.getElementById('acaoLoteInput').value;
         const idx = document.getElementById('acaoAlunoIdxInput').value;
@@ -415,7 +481,6 @@ document.addEventListener("DOMContentLoaded", () => {
             if (vPix + vDin !== 20.00) return window.abrirModalErro(`A soma deve dar R$ 20,00.`);
         }
 
-        // 1. ATUALIZA A TELA IMEDIATAMENTE (SEM ESPERAR)
         window.caixaGlobal.pixReais += vPix; window.caixaGlobal.dinReais += vDin;
         aluno.lotesPendentes = aluno.lotesPendentes.filter(l => l !== lote);
         aluno.lotesVendidos.push(lote);
@@ -424,7 +489,6 @@ document.addEventListener("DOMContentLoaded", () => {
         window.abrirModalSucesso("Venda confirmada!"); 
         if(document.getElementById("adminPage")) window.atualizarDashboardsADM(); 
 
-        // 2. MANDA PRO BANCO NO BACKGROUND
         fetch(SCRIPT_URL, {
             method: 'POST', body: JSON.stringify({ action: 'transacao_lote', acaoLote: 'venda', lote: lote, nomeAluno: aluno.nome, vPix: vPix, vDin: vDin, responsavel: userName })
         }).catch(err => console.error("Erro no background", err));
@@ -435,7 +499,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const idx = document.getElementById('acaoAlunoIdxInput').value;
         const aluno = window.todosEducandosBD[idx];
         
-        // 1. ATUALIZA A TELA IMEDIATAMENTE
         aluno.lotesPendentes = aluno.lotesPendentes.filter(l => l !== lote);
         if(!aluno.lotesDevolvidos) aluno.lotesDevolvidos = [];
         aluno.lotesDevolvidos.push(lote);
@@ -444,7 +507,6 @@ document.addEventListener("DOMContentLoaded", () => {
         window.abrirModalSucesso("Lote devolvido com sucesso!"); 
         if(document.getElementById("adminPage")) window.atualizarDashboardsADM();
 
-        // 2. MANDA PRO BANCO NO BACKGROUND
         fetch(SCRIPT_URL, {
             method: 'POST', body: JSON.stringify({ action: 'transacao_lote', acaoLote: 'devolucao', lote: lote, nomeAluno: aluno.nome, responsavel: userName })
         }).catch(err => console.error("Erro no background", err));
