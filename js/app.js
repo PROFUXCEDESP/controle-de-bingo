@@ -11,6 +11,8 @@ document.addEventListener("DOMContentLoaded", () => {
     
     window.fotoBase64Global = ""; let cropperInstancia = null;
     let estoqueChartInstEdu = null; let financeiroChartInstEdu = null;
+    let estoqueChartInstAdm = null; let financeiroChartInstAdm = null;
+
     window.caixaGlobal = { pixReais: 0.00, dinReais: 0.00 };
     window.todosEducandosBD = []; window.mockEducadoresBD = [];
     window.mockParceirosBD = []; window.lotesSedeBD = []; window.logsDoSistema = [];
@@ -63,8 +65,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // GESTÃO ABAS
     window.mudarAbaEducador = function(secId, navId) {
-        ['secMinhaTurma', 'secVendasGeral', 'secRankingEducandos'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
-        ['navMinhaTurma', 'navVendasGeral', 'navRankingEducandos'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('active'); });
+        ['secMinhaTurma', 'secVendasGeral', 'secRankingEducandos', 'secRankingEducadores'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+        ['navMinhaTurma', 'navVendasGeral', 'navRankingEducandos', 'navRankingEducadores'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('active'); });
         document.getElementById(secId).style.display = 'block'; document.getElementById(navId).classList.add('active');
         if(window.innerWidth <= 768) { document.getElementById('sidebar').classList.remove('open'); }
         if(window.atualizarDashboardEducador) window.atualizarDashboardEducador();
@@ -153,7 +155,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // RECOMPENSAS
     function calcularRecompensas(qtdVendidos) {
         let fone = qtdVendidos >= 10 ? 1 : 0;
         let cartelas = qtdVendidos >= 10 ? 1 + Math.floor((qtdVendidos - 10) / 5) : 0;
@@ -161,7 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
-    // LÓGICA DO EDUCADOR 
+    // LÓGICA DO EDUCADOR E ADM
     // ==========================================
     const educadorPage = document.getElementById("educadorPage");
     if (educadorPage) {
@@ -169,7 +170,7 @@ document.addEventListener("DOMContentLoaded", () => {
         window.carregarDadosDoBanco();
 
         const buscaNome = document.getElementById('buscaNomeAluno');
-        const filtroTurma = document.getElementById('filtroTurmaAluno');
+        const filtroTurma = document.getElementById('filtroTurmaAluno'); // Input hidden do Custom Select
         if(buscaNome) buscaNome.addEventListener('input', () => window.atualizarDashboardEducador());
         if(filtroTurma) filtroTurma.addEventListener('change', () => window.atualizarDashboardEducador());
 
@@ -227,7 +228,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     tabela.innerHTML += `<tr onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(aluno)})"><td class="td-center" style="font-weight: bold; color: #BC68A1;">${index + 1}</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong>${aluno.nome}</strong><br><small style="color:#a0a0a0">${aluno.curso}</small></td><td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td><td class="td-center">${cartelasHTML}</td><td class="td-center">${foneHTML}</td></tr>`;
                 });
-                if(meusAlunosAtivos.length === 0) tabela.innerHTML = '<tr><td colspan="8" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum aluno ativo encontrado. Faça o Cadastro do Educando primeiro.</td></tr>';
+                if(meusAlunosAtivos.length === 0) tabela.innerHTML = '<tr><td colspan="8" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum aluno ativo encontrado na busca.</td></tr>';
             }
 
             let totalPendentesGeral = 0, totalVendidosGeral = 0;
@@ -270,7 +271,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     tabelaRanking.innerHTML += `<tr style="${destaque}"><td class="td-center" style="font-weight: bold;">${index + 1}</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong>${aluno.nome}</strong>${tagMeu}</td><td>${aluno.turma}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center">${aluno.lotesPendentes.length}</td></tr>`;
                 });
             }
-
             const tabelaRankingEducadores = document.getElementById('tabelaRankingEducadoresLista');
             if(tabelaRankingEducadores) {
                 tabelaRankingEducadores.innerHTML = "";
@@ -281,16 +281,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
             }
 
-            // MODAIS 
             const todosMeusAlunosDB = window.todosEducandosBD.filter(a => textoIgual(a.educadorResponsavel, userName));
-            
             const selectNomeCadastro = document.getElementById("opcoesNomeEducando");
             const wrapCad = document.getElementById("wrapperNomeEducando");
             if(selectNomeCadastro && wrapCad) {
                 let optsCad = '';
                 const alunosAguardandoCadastro = todosMeusAlunosDB.filter(a => a.cadastroAtivo !== 'Sim');
                 if (alunosAguardandoCadastro.length === 0) {
-                    optsCad += '<span class="custom-option" data-value="">Todos os alunos já foram ativados</span>';
+                    optsCad += '<span class="custom-option" data-value="">Todos os alunos já ativados</span>';
                 } else {
                     alunosAguardandoCadastro.forEach(a => { optsCad += `<span class="custom-option" data-value="${a.nome}">${a.nome} (${a.turma})</span>`; });
                 }
@@ -315,26 +313,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 ativarEventosSelectCustomizado(wrapAttr);
             }
 
-            // A MÁGICA DOS LOTES: Desabilita Lotes que já foram Atribuídos!
             const listaLotes = document.getElementById("listaLotesCheckboxes");
             if(listaLotes) {
                 let htmlLotes = '';
-                
-                // Mapeia todos os lotes que já estão com alunos (pendentes ou vendidos)
                 let lotesEmUso = [];
-                window.todosEducandosBD.forEach(a => {
-                    lotesEmUso.push(...a.lotesPendentes);
-                    lotesEmUso.push(...a.lotesVendidos);
-                });
-
+                window.todosEducandosBD.forEach(a => { lotesEmUso.push(...a.lotesPendentes); lotesEmUso.push(...a.lotesVendidos); });
                 const meusLotes = window.lotesSedeBD.filter(l => textoIgual(l.educador, userName) || l.educador === '');
                 
                 meusLotes.forEach(l => { 
                     if(lotesEmUso.includes(l.codigo)) {
-                        // Lote Inativo (Já atribuído)
                         htmlLotes += `<label class="checkbox-item-row" style="opacity: 0.5; cursor: not-allowed;" title="Lote já em uso"><input type="checkbox" class="roxo-checkbox" value="${l.codigo}" disabled> <span style="color: var(--dim-grey); font-weight: 500; text-decoration: line-through;">${l.codigo}</span> <span style="margin-left:auto; font-size: 0.8rem; color:#a0a0a0;">Em uso</span></label>`; 
                     } else {
-                        // Lote Livre
                         htmlLotes += `<label class="checkbox-item-row"><input type="checkbox" class="roxo-checkbox" value="${l.codigo}"> <span style="color: var(--dim-grey); font-weight: 500;">${l.codigo}</span></label>`; 
                     }
                 });
@@ -395,12 +384,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // ==========================================
-    // LÓGICA DO ADM
-    // ==========================================
     const adminPage = document.getElementById("adminPage");
-    let estoqueChartInst = null; let financeiroChartInst = null;
-
     if (adminPage) {
         window.carregarDadosDoBanco();
         const tabs = {
@@ -437,6 +421,24 @@ document.addEventListener("DOMContentLoaded", () => {
             if(document.getElementById('kpiProjecaoGlobal')) document.getElementById('kpiProjecaoGlobal').innerText = `R$ ${vPendentes.toFixed(2).replace('.', ',')}`;
             if(document.getElementById('kpiLotesRua')) document.getElementById('kpiLotesRua').innerText = totalPendentes;
 
+            let maiorEstoqueNome = "Nenhum"; let maiorEstoqueQtd = -1;
+            window.mockEducadoresBD.forEach(ed => {
+                let est = ed.lotesRetiradosSede - ed.lotesVendidos - ed.lotesPendentes;
+                if (est > maiorEstoqueQtd) { maiorEstoqueQtd = est; maiorEstoqueNome = ed.nome; }
+            });
+            if(document.getElementById('kpiMaiorEstoque')) document.getElementById('kpiMaiorEstoque').innerHTML = `<strong>${maiorEstoqueNome}</strong> <br><span style="font-size: 1rem; color: var(--dim-grey); font-weight: normal;">${maiorEstoqueQtd} lotes disponíveis</span>`;
+
+            const ctxEst = document.getElementById('estoqueChart');
+            if (ctxEst && ctxEst.offsetParent !== null) { 
+                if (!estoqueChartInstAdm) estoqueChartInstAdm = new Chart(ctxEst.getContext('2d'), { type: 'doughnut', data: { labels: ['Válidos', 'Pendentes', 'Estoque'], datasets: [{ data: [totalVendidos, totalPendentes, 440], backgroundColor: ['#BC68A1', '#F4B841', '#e0e0e0'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false } });
+                else { estoqueChartInstAdm.data.datasets[0].data = [totalVendidos, totalPendentes, 440]; estoqueChartInstAdm.update(); }
+            }
+            const ctxFin = document.getElementById('financeiroChart');
+            if (ctxFin && ctxFin.offsetParent !== null) {
+                if (!financeiroChartInstAdm) financeiroChartInstAdm = new Chart(ctxFin.getContext('2d'), { type: 'bar', data: { labels: ['Caixa Realizado', 'Projeção Restante'], datasets: [{ label: 'Valor em R$', data: [vVendas, vPendentes], backgroundColor: ['#BC68A1', '#F4B841'], borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } } });
+                else { financeiroChartInstAdm.data.datasets[0].data = [vVendas, vPendentes]; financeiroChartInstAdm.update(); }
+            }
+
             let htmlGestao = "";
             window.todosEducandosBD.forEach((aluno, indexOrig) => {
                 if (aluno.lotesPendentes.length > 0) {
@@ -457,12 +459,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     tabelaRankingAlunosADM.innerHTML += `<tr onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(aluno)})"><td class="td-center" style="font-weight: bold;">${index + 1}</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong>${aluno.nome}</strong></td><td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td><td class="td-center">${cartelasHTML}</td><td class="td-center">${foneHTML}</td></tr>`;
                 });
             }
+
+            const tabelaRankingEducadoresADM = document.getElementById('tabelaRankingEducadoresADM');
+            if(tabelaRankingEducadoresADM) {
+                tabelaRankingEducadoresADM.innerHTML = "";
+                let rankingProf = [...window.mockEducadoresBD].sort((a, b) => b.lotesVendidos - a.lotesVendidos);
+                rankingProf.forEach((prof, index) => {
+                    tabelaRankingEducadoresADM.innerHTML += `<tr><td class="td-center" style="font-weight: bold; color: var(--petal-pink);">${index + 1}º</td><td><strong>${prof.nome}</strong></td><td style="color: var(--dim-grey);">${prof.curso}</td><td class="td-center" style="font-weight: bold; font-size: 1.1rem;">${prof.lotesVendidos}</td></tr>`;
+                });
+            }
         };
     }
 
-    // ==========================================
-    // MODAIS GENÉRICOS E TRANSAÇÕES
-    // ==========================================
     window.abrirModal = function(id) { document.getElementById(id).classList.add('active'); }
     window.fecharModal = function(id) { document.getElementById(id).classList.remove('active'); }
     window.abrirModalSucesso = function(txt) { document.getElementById('textoModalSucesso').innerText = txt; abrirModal('modalSucesso'); }
@@ -477,7 +485,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const elNome = document.getElementById('detalheNome'); if(elNome) elNome.innerText = aluno.nome;
         const elTurma = document.getElementById('detalheTurma'); if(elTurma) elTurma.innerText = `${aluno.curso} - ${aluno.turma}`;
         
-        // MATEMÁTICA DE RECOMPENSAS NO MODAL
         const recompensas = calcularRecompensas(aluno.lotesVendidos.length);
         const elFone = document.getElementById('detalheFone'); if(elFone) elFone.innerText = recompensas.fone;
         const elCartelas = document.getElementById('detalheCartelasGanhas'); if(elCartelas) elCartelas.innerText = recompensas.cartelas;
@@ -485,7 +492,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let pendentesEntrega = recompensas.cartelas - aluno.cartelasEntregues;
         const boxRetirar = document.getElementById('boxRetirarCartela');
         if (boxRetirar) {
-            if (pendentesEntrega > 0) {
+            if (pendentesEntrega > 0 && !isAdmin) { // ADM não entrega cartela, só Educador
                 boxRetirar.style.display = 'block';
                 document.getElementById('detalheCartelasPendentes').innerText = pendentesEntrega;
                 document.getElementById('btnRetirarCartela').onclick = () => window.registrarRetiradaCartela(idx);
@@ -521,7 +528,6 @@ document.addEventListener("DOMContentLoaded", () => {
         abrirModal('modalDetalhesAluno');
     }
 
-    // REGISTRO DE CARTELA (OPTIMISTIC UI)
     window.registrarRetiradaCartela = function(idx) {
         const aluno = window.todosEducandosBD[idx];
         aluno.cartelasEntregues += 1; 
@@ -564,6 +570,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         fecharModal('modalAcaoLote'); window.abrirModalSucesso("Venda confirmada!"); 
         if(document.getElementById("adminPage")) window.atualizarDashboardsADM(); 
+        if(document.getElementById("educadorPage")) window.atualizarDashboardEducador();
 
         fetch(SCRIPT_URL, {
             method: 'POST', body: JSON.stringify({ action: 'transacao_lote', acaoLote: 'venda', lote: lote, nomeAluno: aluno.nome, vPix: vPix, vDin: vDin, responsavel: userName })
@@ -581,6 +588,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         fecharModal('modalAcaoLote'); window.abrirModalSucesso("Lote devolvido com sucesso!"); 
         if(document.getElementById("adminPage")) window.atualizarDashboardsADM();
+        if(document.getElementById("educadorPage")) window.atualizarDashboardEducador();
 
         fetch(SCRIPT_URL, {
             method: 'POST', body: JSON.stringify({ action: 'transacao_lote', acaoLote: 'devolucao', lote: lote, nomeAluno: aluno.nome, responsavel: userName })
