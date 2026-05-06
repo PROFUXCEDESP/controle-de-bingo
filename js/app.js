@@ -6,11 +6,8 @@ document.addEventListener("DOMContentLoaded", () => {
                t2.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
     }
 
-    // ==========================================
-    // CONFIGURAÇÕES GERAIS E APIS
-    // ==========================================
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWD-pi7qf1Vlp01I8CO-7euJmqsNureruSEjeFc9bdYUZ_M13he6bqBC_ctJGHUpc4ow/exec'; 
-    const IMGBB_API_KEY = '699c158483746240a585454fdfb09cac'; // SUA CHAVE OFICIAL!
+    const IMGBB_API_KEY = '699c158483746240a585454fdfb09cac';
     
     const userName = localStorage.getItem('usuarioLogado') || 'Administrador';
     
@@ -23,21 +20,15 @@ document.addEventListener("DOMContentLoaded", () => {
     window.todosEducandosBD = []; window.mockEducadoresBD = [];
     window.mockParceirosBD = []; window.lotesSedeBD = []; window.logsDoSistema = [];
 
-    // ==========================================
-    // SISTEMA DE LOGS / AUDITORIA
-    // ==========================================
     window.registrarLog = function(acao, detalhe) {
         const dataHora = new Date().toLocaleString('pt-BR');
         const sessao = window.innerWidth <= 768 ? 'Mobile' : 'Desktop';
         fetch(SCRIPT_URL, {
             method: 'POST',
             body: JSON.stringify({ action: 'registrar_log', dataHora, responsavel: userName, sessao, acao, detalhe, localizacao: 'Sistema Web' })
-        }).catch(e => console.error("Erro ao registrar log", e));
+        }).catch(e => console.error("Erro log", e));
     }
 
-    // ==========================================
-    // BUSCA NOS CUSTOM SELECTS (DIGITAR PARA FILTRAR)
-    // ==========================================
     document.addEventListener('input', (e) => {
         if(e.target.classList.contains('search-custom-select')) {
             const term = e.target.value.toLowerCase();
@@ -99,13 +90,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.addEventListener('click', () => { document.querySelectorAll('.custom-select').forEach(s => s.classList.remove('open')); });
 
+    // ==========================================
+    // SISTEMA UNIVERSAL DE ABAS
+    // ==========================================
     window.mudarAbaEducador = function(secId, navId) {
-        ['secMinhaTurma', 'secVendasGeral', 'secRankingEducandos', 'secRankingEducadores', 'secLivroCaixa', 'secLogs', 'secGestaoLotes', 'secParceiros'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
-        ['navMinhaTurma', 'navVendasGeral', 'navRankingEducandos', 'navRankingEducadores', 'navLivroCaixa', 'navLogs', 'navGestaoLotes', 'navParceiros', 'navRankingAlunos', 'navVisaoGeral'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('active'); });
-        document.getElementById(secId).style.display = 'block'; document.getElementById(navId).classList.add('active');
-        if(window.innerWidth <= 768) { document.getElementById('sidebar').classList.remove('open'); }
-        if(window.atualizarDashboardEducador) window.atualizarDashboardEducador();
-        if(window.atualizarDashboardsADM) window.atualizarDashboardsADM();
+        const todasSecoes = document.querySelectorAll('main.admin-container > section');
+        todasSecoes.forEach(sec => sec.style.display = 'none');
+        
+        const todosNavs = document.querySelectorAll('.sidebar-nav .nav-item');
+        todosNavs.forEach(nav => nav.classList.remove('active'));
+        
+        const secClicada = document.getElementById(secId);
+        if(secClicada) secClicada.style.display = 'block';
+        
+        const navClicado = document.getElementById(navId);
+        if(navClicado) navClicado.classList.add('active');
+        
+        if(window.innerWidth <= 768) { 
+            const side = document.getElementById('sidebar');
+            if(side) side.classList.remove('open'); 
+        }
+        
+        if(document.getElementById("educadorPage") && window.atualizarDashboardEducador) window.atualizarDashboardEducador();
+        if(document.getElementById("adminPage") && window.atualizarDashboardsADM) window.atualizarDashboardsADM();
     }
 
     const sidebar = document.getElementById('sidebar');
@@ -116,9 +123,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if(closeSidebarBtn) closeSidebarBtn.addEventListener('click', () => sidebar.classList.remove('open'));
     }
 
-    // ==========================================
-    // CARGA DE DADOS DO SHEETS
-    // ==========================================
     window.carregarDadosDoBanco = function(recarregarTelas = true) {
         const btnSync = document.getElementById('nomeEducador');
         if(btnSync) btnSync.innerText = "Sincronizando Banco...";
@@ -172,9 +176,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }).catch(err => { console.error(err); if(btnSync) btnSync.innerText = "Erro de Conexão"; });
     }
 
-    // ==========================================
-    // LOGIN
-    // ==========================================
     const loginForm = document.getElementById("loginForm");
     if(loginForm) {
         loginForm.addEventListener("submit", (e) => {
@@ -204,9 +205,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return { fone, cartelas };
     }
 
-    // ==========================================
-    // LÓGICA DO EDUCADOR 
-    // ==========================================
     const educadorPage = document.getElementById("educadorPage");
     if (educadorPage) {
         document.getElementById('nomeEducador').innerText = userName;
@@ -272,7 +270,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     tabela.innerHTML += `<tr onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(aluno)})"><td class="td-center" style="font-weight: bold; color: #BC68A1;">${index + 1}</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong>${aluno.nome}</strong><br><small style="color:#a0a0a0">${aluno.curso}</small></td><td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td><td class="td-center">${cartelasHTML}</td><td class="td-center">${foneHTML}</td></tr>`;
                 });
-                if(meusAlunosAtivos.length === 0) tabela.innerHTML = '<tr><td colspan="8" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum aluno ativo encontrado. Faça o Cadastro primeiro.</td></tr>';
+                if(meusAlunosAtivos.length === 0) tabela.innerHTML = '<tr><td colspan="8" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum aluno ativo encontrado.</td></tr>';
             }
 
             let totalPendentesGeral = 0, totalVendidosGeral = 0;
@@ -343,8 +341,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     alunosAguardandoCadastro.forEach(a => { optsCad += `<span class="custom-option" data-value="${a.nome}">${a.nome} (${a.turma})</span>`; });
                 }
                 selectNomeCadastro.innerHTML = optsCad;
-                wrapCad.querySelector('.trigger-text').textContent = "Selecione o aluno da lista...";
-                wrapCad.querySelector('input[type="hidden"]').value = "";
                 ativarEventosSelectCustomizado(wrapCad);
             }
 
@@ -358,8 +354,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     meusAlunosAtivos.forEach(a => { optsAttr += `<span class="custom-option" data-value="${a.nome}">${a.nome}</span>`; });
                 }
                 selectAlunoAtribuir.innerHTML = optsAttr;
-                wrapAttr.querySelector('.trigger-text').textContent = "Escolha um aluno da sua turma...";
-                wrapAttr.querySelector('input[type="hidden"]').value = "";
                 ativarEventosSelectCustomizado(wrapAttr);
             }
 
@@ -394,7 +388,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 let periodo = (turmaTexto === "Turma 3" || turmaTexto === "Turma 4") ? "Tarde" : "Manhã";
 
-                // UPLOAD IMGBB
                 if(window.fotoFileGlobal && IMGBB_API_KEY) {
                     const formData = new FormData();
                     formData.append('image', window.fotoFileGlobal);
