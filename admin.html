@@ -39,15 +39,16 @@
                 <img src="assets/image/logo_cedesp.png" alt="Logo CEDESP" style="max-width: 150px;">
                 <button class="close-sidebar-btn" id="closeSidebar"><span class="material-symbols-outlined">close</span></button>
             </div>
+            
             <ul class="sidebar-nav">
-                <li class="nav-item active" id="navVisaoGeral"><span class="material-symbols-outlined nav-icon">dashboard</span> <span class="nav-text">Visão Geral</span></li>
-                <li class="nav-item" id="navEngajamento"><span class="material-symbols-outlined nav-icon">monitoring</span> <span class="nav-text">Engajamento</span></li>
-                <li class="nav-item" id="navGestaoLotes"><span class="material-symbols-outlined nav-icon">inventory_2</span> <span class="nav-text">Gestão de Lotes</span></li>
-                <li class="nav-item" id="navParceiros"><span class="material-symbols-outlined nav-icon">handshake</span> <span class="nav-text">Parceiros</span></li>
-                <li class="nav-item" id="navRankingAlunos"><span class="material-symbols-outlined nav-icon">emoji_events</span> <span class="nav-text">Ranking Educandos</span></li>
-                <li class="nav-item" id="navRankingEducadores"><span class="material-symbols-outlined nav-icon">school</span> <span class="nav-text">Ranking Educadores</span></li>
-                <li class="nav-item" id="navLivroCaixa"><span class="material-symbols-outlined nav-icon">account_balance_wallet</span> <span class="nav-text">Livro Caixa</span></li>
-                <li class="nav-item" id="navLogs"><span class="material-symbols-outlined nav-icon">history</span> <span class="nav-text">Auditoria / Logs</span></li>
+                <li class="nav-item active" id="navVisaoGeral" onclick="mudarAbaEducador('secVisaoGeral', 'navVisaoGeral')"><span class="material-symbols-outlined nav-icon">dashboard</span> <span class="nav-text">Visão Geral</span></li>
+                <li class="nav-item" id="navEngajamento" onclick="mudarAbaEducador('secEngajamento', 'navEngajamento')"><span class="material-symbols-outlined nav-icon">monitoring</span> <span class="nav-text">Engajamento</span></li>
+                <li class="nav-item" id="navGestaoLotes" onclick="mudarAbaEducador('secGestaoLotes', 'navGestaoLotes')"><span class="material-symbols-outlined nav-icon">inventory_2</span> <span class="nav-text">Gestão de Lotes</span></li>
+                <li class="nav-item" id="navParceiros" onclick="mudarAbaEducador('secParceiros', 'navParceiros')"><span class="material-symbols-outlined nav-icon">handshake</span> <span class="nav-text">Parceiros</span></li>
+                <li class="nav-item" id="navRankingAlunos" onclick="mudarAbaEducador('secRankingAlunos', 'navRankingAlunos')"><span class="material-symbols-outlined nav-icon">emoji_events</span> <span class="nav-text">Ranking Educandos</span></li>
+                <li class="nav-item" id="navRankingEducadores" onclick="mudarAbaEducador('secRankingEducadores', 'navRankingEducadores')"><span class="material-symbols-outlined nav-icon">school</span> <span class="nav-text">Ranking Educadores</span></li>
+                <li class="nav-item" id="navLivroCaixa" onclick="mudarAbaEducador('secLivroCaixa', 'navLivroCaixa')"><span class="material-symbols-outlined nav-icon">account_balance_wallet</span> <span class="nav-text">Livro Caixa</span></li>
+                <li class="nav-item" id="navLogs" onclick="mudarAbaEducador('secLogs', 'navLogs')"><span class="material-symbols-outlined nav-icon">history</span> <span class="nav-text">Auditoria / Logs</span></li>
             </ul>
             <div class="sidebar-footer">
                 <button class="btn-logout" onclick="window.location.href='index.html'"><span class="material-symbols-outlined nav-icon">logout</span> <span class="nav-text">Sair</span></button>
