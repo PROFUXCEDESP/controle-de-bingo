@@ -47,6 +47,15 @@
         .chart-wrapper { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-top: 15px;}
         .img-container { width: 100%; max-height: 400px; display: flex; justify-content: center; background-color: #000; }
         .img-container img { max-width: 100%; max-height: 400px; display: block; }
+
+        /* NOVA PAGINAÇÃO ELEGANTE */
+        .pagination-wrapper { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 1rem; }
+        .btn-page { background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 5px 12px; cursor: pointer; color: var(--dim-grey); transition: 0.2s; font-weight: bold;}
+        .btn-page:hover:not(:disabled) { border-color: var(--petal-pink); color: var(--petal-pink); }
+        .btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
+        .page-input { width: 50px; text-align: center; padding: 4px; border: 1px solid #ccc; border-radius: 6px; outline: none; color: var(--dim-grey); font-weight: bold; }
+        .page-input:focus { border-color: var(--petal-pink); }
+        .page-info { color: var(--dim-grey); font-size: 0.9rem; }
     </style>
 </head>
 <body class="dashboard-body" id="educadorPage">
@@ -125,16 +134,16 @@
                     <div style="display: flex; gap: 10px; margin-bottom: 1rem; align-items: center;">
                         <input type="text" id="buscaRankingAluno" class="purple-input" placeholder="Pesquisar aluno no ranking..." style="flex: 1;">
                     </div>
-                    <div class="table-container" style="overflow-x: auto; width: 100%; margin-bottom: 1rem;">
+                    <div class="table-container" style="overflow-x: auto; width: 100%;">
                         <table class="data-table" style="min-width: 800px;">
                             <thead><tr><th class="text-center">Pos.</th><th>Foto</th><th>Nome do Educando</th><th>Turma</th><th class="text-center">Retirados</th><th class="text-center">Vendidos</th><th class="text-center">Pendentes</th><th class="text-center">Cartelas Ganhas</th><th class="text-center">Fone</th></tr></thead>
                             <tbody id="tabelaRankingEducador"></tbody>
                         </table>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                        <button class="btn-primary" onclick="changeRankingPage(-1)" style="padding: 5px 15px; background:var(--dim-grey);">&laquo; Anterior</button>
-                        <span id="rankingPageInfo" style="font-weight: bold; color: var(--dim-grey);">Página 1</span>
-                        <button class="btn-primary" onclick="changeRankingPage(1)" style="padding: 5px 15px; background:var(--dim-grey);">Próxima &raquo;</button>
+                    <div class="pagination-wrapper">
+                        <button class="btn-page" onclick="mudarPaginaRanking(-1, 'tabelaRankingEducador')">&laquo;</button>
+                        <span class="page-info">Pág <input type="number" id="inputPaginaRankingEdu" class="page-input" value="1" min="1" onchange="irParaPaginaRanking(this, 'tabelaRankingEducador')"> de <span id="totalPaginasRankingEdu">1</span></span>
+                        <button class="btn-page" onclick="mudarPaginaRanking(1, 'tabelaRankingEducador')">&raquo;</button>
                     </div>
                 </section>
 
@@ -170,11 +179,9 @@
                         </div>
                     </div>
                     <input type="file" id="inputEditFoto" accept="image/*" capture="environment" style="display: none;" onchange="iniciarCorteEdicao(event)">
-                    
                     <h3 id="detalheNome" style="color: var(--dim-grey); margin-bottom: 5px; font-size: 1.4rem;">Nome do Aluno</h3>
                     <p id="detalheTurma" style="color: var(--petal-pink); font-size: 0.95rem; font-weight: 600;">Curso - Turma</p>
                 </div>
-                
                 <div style="background: rgba(188, 104, 161, 0.05); padding: 15px; border: 1px dashed var(--petal-pink); border-radius: 8px; text-align: center; margin-bottom: 1rem;">
                     <h4 style="color: var(--dim-grey); margin-bottom: 10px;">Conquistas de Venda</h4>
                     <div style="display: flex; justify-content: center; gap: 30px;">
@@ -186,21 +193,10 @@
                         <button class="btn-primary" id="btnRetirarCartela" style="width: 100%; background-color: var(--sunflower-gold); color: white;">Confirmar Retirada</button>
                     </div>
                 </div>
-
                 <div class="lotes-info-grid">
-                    <div class="lote-status-box">
-                        <span class="status-title" style="color: var(--petal-pink); font-weight:bold;">Lotes Vendidos (<span id="detalheQtdVendidos">0</span>)</span>
-                        <div class="lotes-badges" id="detalheBadgesVendidos"></div>
-                    </div>
-                    <div class="lote-status-box">
-                        <span class="status-title" style="color: var(--sunflower-gold); font-weight:bold;">Lotes Pendentes (<span id="detalheQtdPendentes">0</span>)</span>
-                        <div class="lotes-badges" id="detalheBadgesPendentes"></div>
-                        <p id="msgCliquePendente" style="font-size: 0.75rem; color: #a0a0a0; margin-top: 8px; display: none;">* Clique no lote para validar ou devolver.</p>
-                    </div>
-                    <div class="lote-status-box" style="margin-bottom: 0;">
-                        <span class="status-title" style="color: var(--dim-grey); font-weight:bold;">Lotes Devolvidos (<span id="detalheQtdDevolvidos">0</span>)</span>
-                        <div class="lotes-badges" id="detalheBadgesDevolvidos"></div>
-                    </div>
+                    <div class="lote-status-box"><span class="status-title" style="color: var(--petal-pink); font-weight:bold;">Lotes Vendidos (<span id="detalheQtdVendidos">0</span>)</span><div class="lotes-badges" id="detalheBadgesVendidos"></div></div>
+                    <div class="lote-status-box"><span class="status-title" style="color: var(--sunflower-gold); font-weight:bold;">Lotes Pendentes (<span id="detalheQtdPendentes">0</span>)</span><div class="lotes-badges" id="detalheBadgesPendentes"></div><p id="msgCliquePendente" style="font-size: 0.75rem; color: #a0a0a0; margin-top: 8px; display: none;">* Clique no lote para validar ou devolver.</p></div>
+                    <div class="lote-status-box" style="margin-bottom: 0;"><span class="status-title" style="color: var(--dim-grey); font-weight:bold;">Lotes Devolvidos (<span id="detalheQtdDevolvidos">0</span>)</span><div class="lotes-badges" id="detalheBadgesDevolvidos"></div></div>
                 </div>
             </div>
         </div>
