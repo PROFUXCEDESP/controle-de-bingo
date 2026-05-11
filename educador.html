@@ -122,11 +122,19 @@
 
                 <section id="secRankingEducandos" style="display: none;">
                     <h2 class="section-title" style="border: none;">Ranking Global de Educandos</h2>
-                    <div class="table-container" style="overflow-x: auto; width: 100%; margin-bottom: 2rem;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 1rem; align-items: center;">
+                        <input type="text" id="buscaRankingAluno" class="purple-input" placeholder="Pesquisar aluno no ranking..." style="flex: 1;">
+                    </div>
+                    <div class="table-container" style="overflow-x: auto; width: 100%; margin-bottom: 1rem;">
                         <table class="data-table" style="min-width: 800px;">
-                            <thead><tr><th class="text-center">Pos.</th><th>Foto</th><th>Nome do Educando</th><th>Turma</th><th class="text-center">Vendidos</th><th class="text-center">Pendentes</th></tr></thead>
+                            <thead><tr><th class="text-center">Pos.</th><th>Foto</th><th>Nome do Educando</th><th>Turma</th><th class="text-center">Retirados</th><th class="text-center">Vendidos</th><th class="text-center">Pendentes</th><th class="text-center">Cartelas Ganhas</th><th class="text-center">Fone</th></tr></thead>
                             <tbody id="tabelaRankingEducador"></tbody>
                         </table>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                        <button class="btn-primary" onclick="changeRankingPage(-1)" style="padding: 5px 15px; background:var(--dim-grey);">&laquo; Anterior</button>
+                        <span id="rankingPageInfo" style="font-weight: bold; color: var(--dim-grey);">Página 1</span>
+                        <button class="btn-primary" onclick="changeRankingPage(1)" style="padding: 5px 15px; background:var(--dim-grey);">Próxima &raquo;</button>
                     </div>
                 </section>
 
@@ -134,7 +142,7 @@
                     <h2 class="section-title" style="border: none;">Ranking Global de Educadores</h2>
                     <div class="table-container" style="overflow-x: auto; width: 100%;">
                         <table class="data-table" style="min-width: 600px;">
-                            <thead><tr><th style="width: 80px;" class="text-center">Posição</th><th>Nome do Educador</th><th>Curso</th><th class="text-center">Lotes Consolidados</th></tr></thead>
+                            <thead><tr><th class="text-center">Posição</th><th>Nome do Educador</th><th>Curso</th><th class="text-center">Lotes Consolidados</th><th class="text-center">Valor Arrecadado</th></tr></thead>
                             <tbody id="tabelaRankingEducadoresLista"></tbody>
                         </table>
                     </div>
@@ -154,7 +162,6 @@
                 <button class="close-modal-btn" onclick="fecharModal('modalDetalhesAluno')"><span class="material-symbols-outlined">close</span></button>
             </div>
             <div class="modal-body" style="padding-top: 1rem;">
-                
                 <div style="text-align: center; margin-bottom: 1rem;">
                     <div style="position: relative; width: 80px; height: 80px; margin: 0 auto 10px auto; cursor: pointer; display: inline-block;" onclick="document.getElementById('inputEditFoto').click()" title="Alterar Foto">
                         <img src="" id="detalheFoto" class="table-avatar" style="width: 100%; height: 100%; border-color: var(--petal-pink); margin: 0; display: block; object-fit: cover;">
