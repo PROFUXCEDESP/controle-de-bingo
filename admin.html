@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CEDESP Bingo - Administração</title>
-    <link rel="icon" href="assets/image/logo_cedesp.png" type="image/png">
+    <link rel="icon" href="assets/image/CORACAO_COMUNITA.png" type="image/png">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0" />
@@ -97,7 +97,58 @@
     </div>
 
     <div class="modal-overlay" id="modalTransferirLote"><div class="modal-box" style="width: 90%; max-width: 450px;"><div class="modal-header"><h2>Transferir Lotes da Sede</h2><button class="close-modal-btn" onclick="fecharModal('modalTransferirLote')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body"><form id="formTransferirLote"><div class="form-group"><label style="color: var(--dim-grey); font-weight: bold; margin-bottom: 5px; display: block;">Lotes Disponíveis:</label><div class="checkbox-list-container" id="listaLotesSede" style="margin-bottom: 15px;"></div></div><div class="form-group"><label style="color: var(--dim-grey); font-weight: bold; margin-bottom: 5px; display: block;">Para o Educador:</label><div class="custom-select-wrapper" id="wrapperEducadorDestino"><div class="custom-select"><div class="custom-select-trigger"><span class="trigger-text" style="color: var(--dim-grey);">Selecione o destino...</span><span class="material-symbols-outlined arrow-icon">expand_more</span></div><div class="custom-options" id="opcoesEducadorDestino"></div></div><input type="hidden" id="educadorDestinoVal" required></div></div><button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Confirmar Transferência</button></form></div></div></div>
-    <div class="modal-overlay" id="modalDetalhesAluno"><div class="modal-box" style="width: 90%; max-width: 450px;"><div class="modal-header"><h2>Ficha do Educando</h2><button class="close-modal-btn" onclick="fecharModal('modalDetalhesAluno')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="padding-top: 1rem;"><div style="text-align: center; margin-bottom: 1rem;"><img src="" id="detalheFoto" class="table-avatar" style="width: 80px; height: 80px; margin: 0 auto 10px auto; border-color: var(--petal-pink);"><h3 id="detalheNome" style="color: var(--dim-grey); margin-bottom: 5px; font-size: 1.4rem;">Nome do Aluno</h3><p id="detalheTurma" style="color: var(--petal-pink); font-size: 0.95rem; font-weight: 600;">Curso - Turma</p></div><div style="background: rgba(188, 104, 161, 0.05); padding: 15px; border: 1px dashed var(--petal-pink); border-radius: 8px; text-align: center; margin-bottom: 1rem;"><h4 style="color: var(--dim-grey); margin-bottom: 10px;">Conquistas de Venda</h4><div style="display: flex; justify-content: center; gap: 30px;"><div><span class="material-symbols-outlined" style="color: var(--petal-pink); font-size: 28px;">headphones</span><br><strong style="font-size: 1.1rem;"><span id="detalheFone">0</span> Fone(s)</strong></div><div><span class="material-symbols-outlined" style="color: var(--sunflower-gold); font-size: 28px;">description</span><br><strong style="font-size: 1.1rem;"><span id="detalheCartelasGanhas">0</span> Cartela(s)</strong></div></div></div><div class="lotes-info-grid"><div class="lote-status-box"><span class="status-title" style="color: var(--petal-pink);">Lotes Vendidos (<span id="detalheQtdVendidos">0</span>)</span><div class="lotes-badges" id="detalheBadgesVendidos"></div></div><div class="lote-status-box"><span class="status-title" style="color: var(--sunflower-gold);">Lotes Pendentes (<span id="detalheQtdPendentes">0</span>)</span><div class="lotes-badges" id="detalheBadgesPendentes"></div><p id="msgCliquePendente" style="font-size: 0.75rem; color: #a0a0a0; margin-top: 8px; display: none;">* Clique no lote para validar ou devolver.</p></div><div class="lote-status-box"><span class="status-title" style="color: var(--dim-grey);">Lotes Devolvidos (<span id="detalheQtdDevolvidos">0</span>)</span><div class="lotes-badges" id="detalheBadgesDevolvidos"></div></div></div></div></div></div>
+    <div class="modal-overlay" id="modalDetalhesAluno">
+    <div class="modal-box" style="width: 90%; max-width: 450px;">
+        <div class="modal-header">
+            <h2>Ficha do Educando</h2>
+            <button class="close-modal-btn" onclick="fecharModal('modalDetalhesAluno')"><span class="material-symbols-outlined">close</span></button>
+        </div>
+        <div class="modal-body" style="padding-top: 1rem;">
+            
+            <div style="text-align: center; margin-bottom: 1rem;">
+                <div style="position: relative; width: 80px; height: 80px; margin: 0 auto 10px auto; cursor: pointer; display: inline-block;" onclick="document.getElementById('inputEditFoto').click()" title="Alterar Foto">
+                    <img src="" id="detalheFoto" class="table-avatar" style="width: 100%; height: 100%; border-color: var(--petal-pink); margin: 0; display: block; object-fit: cover;">
+                    <div style="position: absolute; bottom: -2px; right: -5px; background: var(--petal-pink); color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">edit</span>
+                    </div>
+                </div>
+                <input type="file" id="inputEditFoto" accept="image/*" capture="environment" style="display: none;" onchange="iniciarCorteEdicao(event)">
+                
+                <h3 id="detalheNome" style="color: var(--dim-grey); margin-bottom: 5px; font-size: 1.4rem;">Nome do Aluno</h3>
+                <p id="detalheTurma" style="color: var(--petal-pink); font-size: 0.95rem; font-weight: 600;">Curso - Turma</p>
+            </div>
+            
+            <div style="background: rgba(188, 104, 161, 0.05); padding: 15px; border: 1px dashed var(--petal-pink); border-radius: 8px; text-align: center; margin-bottom: 1rem;">
+                <h4 style="color: var(--dim-grey); margin-bottom: 10px;">Conquistas de Venda</h4>
+                <div style="display: flex; justify-content: center; gap: 30px;">
+                    <div><span class="material-symbols-outlined" style="color: var(--petal-pink); font-size: 28px;">headphones</span><br><strong style="font-size: 1.1rem;"><span id="detalheFone">0</span> Fone(s)</strong></div>
+                    <div><span class="material-symbols-outlined" style="color: var(--sunflower-gold); font-size: 28px;">description</span><br><strong style="font-size: 1.1rem;"><span id="detalheCartelasGanhas">0</span> Cartela(s)</strong></div>
+                </div>
+                <div id="boxRetirarCartela" style="margin-top: 15px; display: none;">
+                    <p style="color: var(--obsidian); font-size: 0.85rem; margin-bottom: 8px;"><strong><span id="detalheCartelasPendentes"></span> cartela(s) extra(s)</strong> prontas para entrega.</p>
+                    <button class="btn-primary" id="btnRetirarCartela" style="width: 100%; background-color: var(--sunflower-gold); color: white;">Confirmar Retirada</button>
+                </div>
+            </div>
+
+            <div class="lotes-info-grid">
+                <div class="lote-status-box">
+                    <span class="status-title" style="color: var(--petal-pink); font-weight:bold;">Lotes Vendidos (<span id="detalheQtdVendidos">0</span>)</span>
+                    <div class="lotes-badges" id="detalheBadgesVendidos"></div>
+                </div>
+                <div class="lote-status-box">
+                    <span class="status-title" style="color: var(--sunflower-gold); font-weight:bold;">Lotes Pendentes (<span id="detalheQtdPendentes">0</span>)</span>
+                    <div class="lotes-badges" id="detalheBadgesPendentes"></div>
+                    <p id="msgCliquePendente" style="font-size: 0.75rem; color: #a0a0a0; margin-top: 8px; display: none;">* Clique no lote para validar ou devolver.</p>
+                </div>
+                <div class="lote-status-box" style="margin-bottom: 0;">
+                    <span class="status-title" style="color: var(--dim-grey); font-weight:bold;">Lotes Devolvidos (<span id="detalheQtdDevolvidos">0</span>)</span>
+                    <div class="lotes-badges" id="detalheBadgesDevolvidos"></div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
     <div class="modal-overlay" id="modalAcaoLote"><div class="modal-box" style="width: 90%; max-width: 400px;"><div class="modal-header"><h2>Validação de Lote</h2><button class="close-modal-btn" onclick="fecharModal('modalAcaoLote')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body"><div style="text-align: center; margin-bottom: 1rem;"><h3 style="color: var(--petal-pink); font-size: 1.5rem; margin-bottom: 5px;" id="acaoLoteNome">LOTE-XX</h3><p style="color: var(--dim-grey); font-weight: bold;">Aluno: <span id="acaoLoteAluno">Nome</span></p></div><input type="hidden" id="acaoLoteInput"><input type="hidden" id="acaoAlunoIdxInput"><div class="form-group"><label style="font-weight: bold; color: var(--dim-grey);">Forma de Pagamento (R$ 20,00)</label><div style="display: flex; gap: 15px; margin-top: 10px; margin-bottom: 15px;"><label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="formaPagamentoLote" value="PIX" class="amarelo-radio" checked onchange="toggleMisto(false)"> PIX</label><label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="formaPagamentoLote" value="Dinheiro" class="amarelo-radio" onchange="toggleMisto(false)"> Dinheiro</label><label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="formaPagamentoLote" value="Misto" class="amarelo-radio" onchange="toggleMisto(true)"> Misto</label></div><div id="camposMisto" style="display: none; gap: 10px;"><div class="form-group" style="flex: 1;"><label>Valor PIX (R$)</label><input type="number" id="valorPixMisto" step="0.01" class="purple-input"></div><div class="form-group" style="flex: 1;"><label>Valor Dinheiro (R$)</label><input type="number" id="valorDinMisto" step="0.01" class="purple-input"></div></div></div><div style="display: flex; gap: 10px; margin-top: 1rem;"><button class="btn-primary" style="flex: 1; background-color: var(--sunflower-gold);" onclick="confirmarDevolucaoLote()">Devolver Lote</button><button class="btn-primary" style="flex: 1;" onclick="confirmarVendaLote()">Confirmar Venda</button></div></div></div></div>
     <div class="modal-overlay" id="modalErro"><div class="modal-box" style="width: 90%; max-width: 400px; text-align: center;"><div class="modal-header"><h2>Ops! Algo deu errado</h2><button class="close-modal-btn" onclick="fecharModal('modalErro')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="padding-top: 1rem;"><span class="material-symbols-outlined" style="font-size: 56px; color: var(--sunflower-gold); margin-bottom: 10px;">error</span><p class="modal-desc" id="textoModalErro" style="font-size: 1.05rem; color: var(--dim-grey); margin-bottom: 1.5rem;"></p><button class="btn-primary" style="background-color: var(--petal-pink); width: 100%;" onclick="fecharModal('modalErro')">Tentar Novamente</button></div></div></div>
     <div class="modal-overlay" id="modalSucesso"><div class="modal-box" style="width: 90%; max-width: 400px;"><div class="modal-header"><h2>Sucesso!</h2><button class="close-modal-btn" onclick="fecharModal('modalSucesso')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="text-align: center;"><span class="material-symbols-outlined" style="font-size: 56px; color: var(--petal-pink); margin-bottom: 1rem;">check_circle</span><p class="modal-desc" id="textoModalSucesso" style="font-size: 1.1rem; color: var(--dim-grey);"></p><button class="btn-primary" onclick="fecharModal('modalSucesso')" style="width: 100%;">Entendido</button></div></div></div>
