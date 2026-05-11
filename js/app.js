@@ -11,7 +11,11 @@ document.addEventListener("DOMContentLoaded", () => {
     
     const userName = localStorage.getItem('usuarioLogado') || 'Administrador';
     
-    window.fotoFileGlobal = null; let cropperInstancia = null;
+    window.fotoFileGlobal = null; 
+    let cropperInstancia = null;
+    window.alunoEmFocoIdx = null;  // Saber quem estamos editando
+    window.modoEdicaoFoto = false; // Saber se é cadastro ou edição
+
     let estoqueChartInstEdu = null; let financeiroChartInstEdu = null;
     let estoqueChartInstAdm = null; let financeiroChartInstAdm = null;
 
@@ -29,6 +33,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }).catch(e => console.error("Erro log", e));
     }
 
+    // ==========================================
+    // SISTEMA CUSTOM SELECTS
+    // ==========================================
     document.addEventListener('input', (e) => {
         if(e.target.classList.contains('search-custom-select')) {
             const term = e.target.value.toLowerCase();
@@ -90,29 +97,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.addEventListener('click', () => { document.querySelectorAll('.custom-select').forEach(s => s.classList.remove('open')); });
 
-    // ==========================================
-    // SISTEMA UNIVERSAL DE ABAS
-    // ==========================================
     window.mudarAbaEducador = function(secId, navId) {
-        const todasSecoes = document.querySelectorAll('main.admin-container > section');
-        todasSecoes.forEach(sec => sec.style.display = 'none');
-        
-        const todosNavs = document.querySelectorAll('.sidebar-nav .nav-item');
-        todosNavs.forEach(nav => nav.classList.remove('active'));
-        
-        const secClicada = document.getElementById(secId);
-        if(secClicada) secClicada.style.display = 'block';
-        
-        const navClicado = document.getElementById(navId);
-        if(navClicado) navClicado.classList.add('active');
-        
-        if(window.innerWidth <= 768) { 
-            const side = document.getElementById('sidebar');
-            if(side) side.classList.remove('open'); 
-        }
-        
-        if(document.getElementById("educadorPage") && window.atualizarDashboardEducador) window.atualizarDashboardEducador();
-        if(document.getElementById("adminPage") && window.atualizarDashboardsADM) window.atualizarDashboardsADM();
+        ['secMinhaTurma', 'secVendasGeral', 'secRankingEducandos', 'secRankingEducadores', 'secLivroCaixa', 'secLogs', 'secGestaoLotes', 'secParceiros'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'none'; });
+        ['navMinhaTurma', 'navVendasGeral', 'navRankingEducandos', 'navRankingEducadores', 'navLivroCaixa', 'navLogs', 'navGestaoLotes', 'navParceiros', 'navRankingAlunos', 'navVisaoGeral'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('active'); });
+        document.getElementById(secId).style.display = 'block'; document.getElementById(navId).classList.add('active');
+        if(window.innerWidth <= 768) { document.getElementById('sidebar').classList.remove('open'); }
+        if(window.atualizarDashboardEducador) window.atualizarDashboardEducador();
+        if(window.atualizarDashboardsADM) window.atualizarDashboardsADM();
     }
 
     const sidebar = document.getElementById('sidebar');
@@ -123,6 +114,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if(closeSidebarBtn) closeSidebarBtn.addEventListener('click', () => sidebar.classList.remove('open'));
     }
 
+    // ==========================================
+    // CARGA DE DADOS DO SHEETS
+    // ==========================================
     window.carregarDadosDoBanco = function(recarregarTelas = true) {
         const btnSync = document.getElementById('nomeEducador');
         if(btnSync) btnSync.innerText = "Sincronizando Banco...";
@@ -205,6 +199,94 @@ document.addEventListener("DOMContentLoaded", () => {
         return { fone, cartelas };
     }
 
+    // ==========================================
+    // SISTEMA DE CORTE DE FOTOS (CADASTRO E EDIÇÃO)
+    // ==========================================
+    window.iniciarCorteFoto = function(event) {
+        const input = event.target;
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imgToCrop = document.getElementById('imagemParaCorte');
+                imgToCrop.src = e.target.result;
+                window.modoEdicaoFoto = false; // Modo Cadastro
+                abrirModal('modalCorteFoto');
+                if(cropperInstancia) cropperInstancia.destroy();
+                cropperInstancia = new Cropper(imgToCrop, { aspectRatio: 1, viewMode: 1 });
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+        input.value = ''; // Reseta para permitir subir a mesma foto
+    }
+
+    window.iniciarCorteEdicao = function(event) {
+        const input = event.target;
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imgToCrop = document.getElementById('imagemParaCorte');
+                imgToCrop.src = e.target.result;
+                window.modoEdicaoFoto = true; // Modo Edição!
+                abrirModal('modalCorteFoto');
+                if(cropperInstancia) cropperInstancia.destroy();
+                cropperInstancia = new Cropper(imgToCrop, { aspectRatio: 1, viewMode: 1 });
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+        input.value = ''; 
+    }
+
+    const btnConfirmarCorte = document.getElementById('btnConfirmarCorte');
+    if(btnConfirmarCorte) {
+        btnConfirmarCorte.addEventListener('click', (e) => {
+            e.preventDefault();
+            if(cropperInstancia) {
+                if (window.modoEdicaoFoto && window.alunoEmFocoIdx !== null) {
+                    // FLUXO DE EDIÇÃO DIRETO NO PERFIL
+                    btnConfirmarCorte.innerText = "Enviando Foto...";
+                    btnConfirmarCorte.disabled = true;
+
+                    cropperInstancia.getCroppedCanvas({ width: 300, height: 300 }).toBlob((blob) => {
+                        const formData = new FormData(); formData.append('image', blob);
+                        fetch('https://api.imgbb.com/1/upload?key=' + IMGBB_API_KEY, { method: 'POST', body: formData })
+                        .then(r => r.json()).then(dataImg => {
+                            const urlDaFoto = dataImg.data.url;
+                            const aluno = window.todosEducandosBD[window.alunoEmFocoIdx];
+                            
+                            aluno.foto = urlDaFoto;
+                            document.getElementById('detalheFoto').src = urlDaFoto;
+                            if(document.getElementById("educadorPage")) window.atualizarDashboardEducador();
+                            if(document.getElementById("adminPage")) window.atualizarDashboardsADM();
+
+                            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'atualizar_foto', nomeAluno: aluno.nome, fotoUrl: urlDaFoto }) });
+                            
+                            fecharModal('modalCorteFoto');
+                            window.abrirModalSucesso("Foto do aluno atualizada!");
+                            window.registrarLog("Atualização de Foto", `Alterou a foto do aluno ${aluno.nome}`);
+                        }).finally(() => {
+                            btnConfirmarCorte.innerText = "Cortar e Salvar Foto";
+                            btnConfirmarCorte.disabled = false;
+                            window.modoEdicaoFoto = false;
+                        });
+                    }, 'image/jpeg');
+
+                } else {
+                    // FLUXO DE CADASTRO NORMAL
+                    cropperInstancia.getCroppedCanvas({ width: 300, height: 300 }).toBlob((blob) => {
+                        window.fotoFileGlobal = blob;
+                        document.getElementById('previewFoto').src = URL.createObjectURL(blob);
+                        document.getElementById('previewFoto').style.display = 'block';
+                        document.getElementById('iconCamera').style.display = 'none';
+                        fecharModal('modalCorteFoto');
+                    }, 'image/jpeg');
+                }
+            }
+        });
+    }
+
+    // ==========================================
+    // LÓGICA DO EDUCADOR 
+    // ==========================================
     const educadorPage = document.getElementById("educadorPage");
     if (educadorPage) {
         document.getElementById('nomeEducador').innerText = userName;
@@ -214,37 +296,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const filtroTurma = document.getElementById('filtroTurmaAluno');
         if(buscaNome) buscaNome.addEventListener('input', () => window.atualizarDashboardEducador());
         if(filtroTurma) filtroTurma.addEventListener('change', () => window.atualizarDashboardEducador());
-
-        window.iniciarCorteFoto = function(event) {
-            const input = event.target;
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const imgToCrop = document.getElementById('imagemParaCorte');
-                    imgToCrop.src = e.target.result;
-                    abrirModal('modalCorteFoto');
-                    if(cropperInstancia) cropperInstancia.destroy();
-                    cropperInstancia = new Cropper(imgToCrop, { aspectRatio: 1, viewMode: 1 });
-                }
-                reader.readAsDataURL(input.files[0]);
-            }
-        }
-
-        const btnConfirmarCorte = document.getElementById('btnConfirmarCorte');
-        if(btnConfirmarCorte) {
-            btnConfirmarCorte.addEventListener('click', (e) => {
-                e.preventDefault();
-                if(cropperInstancia) {
-                    cropperInstancia.getCroppedCanvas({ width: 300, height: 300 }).toBlob((blob) => {
-                        window.fotoFileGlobal = blob;
-                        document.getElementById('previewFoto').src = URL.createObjectURL(blob);
-                        document.getElementById('previewFoto').style.display = 'block';
-                        document.getElementById('iconCamera').style.display = 'none';
-                        fecharModal('modalCorteFoto');
-                    }, 'image/jpeg');
-                }
-            });
-        }
 
         window.atualizarDashboardEducador = function() {
             let meusAlunosAtivos = window.todosEducandosBD.filter(a => 
@@ -270,7 +321,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     
                     tabela.innerHTML += `<tr onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(aluno)})"><td class="td-center" style="font-weight: bold; color: #BC68A1;">${index + 1}</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong>${aluno.nome}</strong><br><small style="color:#a0a0a0">${aluno.curso}</small></td><td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td><td class="td-center">${cartelasHTML}</td><td class="td-center">${foneHTML}</td></tr>`;
                 });
-                if(meusAlunosAtivos.length === 0) tabela.innerHTML = '<tr><td colspan="8" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum aluno ativo encontrado.</td></tr>';
+                if(meusAlunosAtivos.length === 0) tabela.innerHTML = '<tr><td colspan="8" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum aluno ativo encontrado. Faça o Cadastro primeiro.</td></tr>';
             }
 
             let totalPendentesGeral = 0, totalVendidosGeral = 0;
@@ -313,7 +364,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const rec = calcularRecompensas(aluno.lotesVendidos.length);
                     const cartelasHTML = rec.cartelas > 0 ? `<div class="flex-center" style="font-weight:bold; color:var(--sunflower-gold);">${rec.cartelas}</div>` : '-';
                     const foneHTML = rec.fone > 0 ? '<span class="material-symbols-outlined" style="color:var(--petal-pink);">headphones</span>' : '-';
-                    tabelaRanking.innerHTML += `<tr style="${destaque}" onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(aluno)})"><td class="td-center" style="font-weight: bold;">${index + 1}</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong>${aluno.nome}</strong>${tagMeu}</td><td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td><td class="td-center">${cartelasHTML}</td><td class="td-center">${foneHTML}</td></tr>`;
+                    tabelaRanking.innerHTML += `<tr style="${destaque}" onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(aluno)})"><td class="td-center" style="font-weight: bold;">${index + 1}</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong>${aluno.nome}</strong>${tagMeu}</td><td>${aluno.turma}</td><td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td><td class="td-center">${cartelasHTML}</td><td class="td-center">${foneHTML}</td></tr>`;
                 });
             }
             const tabelaRankingEducadores = document.getElementById('tabelaRankingEducadoresLista');
@@ -334,11 +385,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const wrapCad = document.getElementById("wrapperNomeEducando");
             if(selectNomeCadastro && wrapCad) {
                 let optsCad = searchBox;
-                const alunosAguardandoCadastro = todosMeusAlunosDB.filter(a => a.cadastroAtivo !== 'Sim');
-                if (alunosAguardandoCadastro.length === 0) {
-                    optsCad += '<span class="custom-option" data-value="">Todos os alunos já foram ativados</span>';
+                if (todosMeusAlunosDB.length === 0) {
+                    optsCad += '<span class="custom-option" data-value="">Nenhum aluno atrelado à você.</span>';
                 } else {
-                    alunosAguardandoCadastro.forEach(a => { optsCad += `<span class="custom-option" data-value="${a.nome}">${a.nome} (${a.turma})</span>`; });
+                    todosMeusAlunosDB.forEach(a => { 
+                        let lblFoto = a.foto.includes('ui-avatars') ? '<span style="color:#a0a0a0; font-size: 0.8rem;">(Sem Foto)</span>' : '';
+                        optsCad += `<span class="custom-option" data-value="${a.nome}">${a.nome} ${lblFoto}</span>`; 
+                    });
                 }
                 selectNomeCadastro.innerHTML = optsCad;
                 ativarEventosSelectCustomizado(wrapCad);
@@ -380,7 +433,7 @@ document.addEventListener("DOMContentLoaded", () => {
             formCadastrarEducando.addEventListener("submit", (e) => {
                 e.preventDefault();
                 const btn = formCadastrarEducando.querySelector("button[type='submit']");
-                btn.innerText = "Enviando Foto (Aguarde)..."; btn.disabled = true;
+                btn.innerText = "Salvando Dados..."; btn.disabled = true;
 
                 const nome = document.getElementById("nomeSelectEducando").value;
                 const turmaTexto = document.getElementById("turmaSelectEducando").value; 
@@ -389,6 +442,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 let periodo = (turmaTexto === "Turma 3" || turmaTexto === "Turma 4") ? "Tarde" : "Manhã";
 
                 if(window.fotoFileGlobal && IMGBB_API_KEY) {
+                    btn.innerText = "Enviando Foto...";
                     const formData = new FormData();
                     formData.append('image', window.fotoFileGlobal);
                     
@@ -406,13 +460,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         function salvarEducandoBanco(nome, turmaTexto, periodo, fotoUrl, btn) {
-            btn.innerText = "Salvando Dados...";
+            btn.innerText = "Finalizando...";
             fetch(SCRIPT_URL, {
                 method: 'POST', body: JSON.stringify({ action: 'cadastrar_educando', nome: nome, turma: turmaTexto, periodo: periodo, educadorResponsavel: userName, fotoUrl: fotoUrl })
             }).then(res => res.json()).then(data => {
                 btn.innerText = "Ativar Educando"; btn.disabled = false;
                 if(data.success) {
-                    window.registrarLog("Cadastro", `Vinculou foto ao aluno ${nome}`);
+                    window.registrarLog("Ativação/Cadastro", `Ativou o aluno(a) ${nome} no sistema.`);
                     fecharModal('modalCadastrarEducando'); formCadastrarEducando.reset();
                     window.fotoFileGlobal = null; document.getElementById('previewFoto').style.display = 'none'; document.getElementById('iconCamera').style.display = 'block';
                     window.abrirModalSucesso(data.message); window.carregarDadosDoBanco();
@@ -436,7 +490,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 .then(res => res.json()).then(data => {
                     btn.innerText = "Confirmar Atribuição"; btn.disabled = false;
                     if(data.success) {
-                        window.registrarLog("Atribuição de Lote", `Atribuiu ${lotesArray.join(', ')} para ${alunoInput}`);
+                        window.registrarLog("Atribuição", `Atribuiu os lotes ${lotesArray.join(', ')} para o aluno ${alunoInput}`);
                         fecharModal('modalAtribuirLote'); formAtribuirLote.reset(); window.abrirModalSucesso("Lotes atribuídos!"); window.carregarDadosDoBanco(); 
                     } else { window.abrirModalErro(data.message); }
                 }).catch(err => { btn.disabled = false; btn.innerText = "Confirmar Atribuição"; window.abrirModalErro("Erro de rede."); });
@@ -522,12 +576,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const tabelaCaixa = document.getElementById('tabelaLivroCaixa');
             if(tabelaCaixa && window.caixaGlobalBD) {
                 tabelaCaixa.innerHTML = window.caixaGlobalBD.reverse().map(tx => {
-                    const dt = tx['Data/Hora'] || tx['Data_Hora'] || '-';
+                    const dt = tx['Data/Hora'] || tx['Data_Hora'] || tx['Data'] || '-';
                     const id = tx['ID_Transacao'] || tx['ID'] || '-';
                     const lote = tx['Lote'] || tx['Codigo_Lote'] || '-';
                     const edu = tx['Educando'] || tx['Aluno'] || '-';
                     const val = parseFloat(tx['Valor'] || 0).toFixed(2).replace('.', ',');
-                    const met = tx['Metodo_Pagamento'] || tx['Método'] || '-';
+                    const met = tx['Metodo_Pagamento'] || tx['Método'] || tx['Metodo'] || '-';
                     const resp = tx['Responsavel'] || tx['Educador Responsavel'] || '-';
                     return `<tr><td>${dt}</td><td><span style="color:#a0a0a0; font-size:0.8rem;">${id}</span></td><td><strong>${lote}</strong></td><td>${edu}</td><td class="highlight-purple" style="font-weight:bold;">R$ ${val}</td><td>${met}</td><td>${resp}</td></tr>`;
                 }).join('');
@@ -536,11 +590,11 @@ document.addEventListener("DOMContentLoaded", () => {
             const tabelaLogs = document.getElementById('tabelaLogs');
             if(tabelaLogs && window.logsDoSistema) {
                 tabelaLogs.innerHTML = window.logsDoSistema.map(l => {
-                    const dt = l['Data/Hora'] || l['Data_Hora'] || '-';
-                    const resp = l['Responsavel'] || l['Usuário'] || '-';
-                    const sessao = l['Sessão_Dispositivo'] || l['Sessao'] || '-';
-                    const acao = l['Ação_Registrada'] || l['Acao'] || '-';
-                    const det = l['Detalhes'] || '-';
+                    const dt = l['Data/Hora'] || l['Data_Hora'] || l['Data Hora'] || l['Data'] || '-';
+                    const resp = l['Responsavel'] || l['Responsável'] || l['Usuário'] || l['Usuario'] || '-';
+                    const sessao = l['Sessão_Dispositivo'] || l['Sessao'] || l['Sessao Dispositivo'] || '-';
+                    const acao = l['Ação_Registrada'] || l['Acao'] || l['Ação'] || l['Acao Registrada'] || '-';
+                    const det = l['Detalhes'] || l['Detalhe'] || '-';
                     return `<tr><td style="color:var(--dim-grey); font-size:0.85rem;">${dt}</td><td><strong>${resp}</strong><br><small style="color:#ccc;">${sessao}</small></td><td style="color:var(--petal-pink); font-weight:bold;">${acao}</td><td style="color:var(--dim-grey);">${det}</td></tr>`;
                 }).join('');
             }
@@ -584,7 +638,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const btn = formTransferirLote.querySelector("button[type='submit']");
                 btn.innerText = "Transferindo..."; btn.disabled = true;
 
-                window.registrarLog("Transferência de Lotes Sede", `Moveu lotes ${lotesSel.join(', ')} para o educador ${dest}`);
+                window.registrarLog("Transferência (Sede)", `Transferiu lotes ${lotesSel.join(', ')} para: ${dest}`);
                 lotesSel.forEach(cod => { let l = window.lotesSedeBD.find(x => x.codigo === cod); if(l) l.educador = (dest === 'Sede' ? '' : dest); });
                 
                 fecharModal('modalTransferirLote'); window.abrirModalSucesso("Transferência realizada!");
@@ -607,6 +661,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.toggleMisto = function(mostrar) { document.getElementById('camposMisto').style.display = mostrar ? 'flex' : 'none'; }
 
     window.abrirDetalhesAluno = function(idx) {
+        window.alunoEmFocoIdx = idx; 
         const isAdmin = document.getElementById('adminPage') !== null;
         const aluno = window.todosEducandosBD[idx]; 
         
@@ -658,7 +713,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.registrarRetiradaCartela = function(idx) {
         const aluno = window.todosEducandosBD[idx];
         aluno.cartelasEntregues += 1; 
-        window.registrarLog("Retirada Cartela", `Aluno ${aluno.nome} retirou +1 cartela extra.`);
+        window.registrarLog("Cartela Extra", `O Educando ${aluno.nome} retirou +1 cartela física.`);
         abrirDetalhesAluno(idx); 
         fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'entregar_cartela', nomeAluno: aluno.nome }) }).catch(err => console.error(err));
     }
@@ -697,7 +752,7 @@ document.addEventListener("DOMContentLoaded", () => {
         aluno.lotesVendidos.push(lote);
         
         fecharModal('modalAcaoLote'); window.abrirModalSucesso("Venda confirmada!"); 
-        window.registrarLog("Venda Consolidada", `Lote ${lote} validado para ${aluno.nome}. Pagamento: R$ ${vPix+vDin} via ${formaPagamento}`);
+        window.registrarLog("Venda", `Lote ${lote} vendido pelo aluno ${aluno.nome}. Pago: R$ ${vPix+vDin} via ${formaPagamento}`);
         if(document.getElementById("adminPage")) window.atualizarDashboardsADM(); 
         if(document.getElementById("educadorPage")) window.atualizarDashboardEducador();
 
@@ -716,7 +771,7 @@ document.addEventListener("DOMContentLoaded", () => {
         aluno.lotesDevolvidos.push(lote);
         
         fecharModal('modalAcaoLote'); window.abrirModalSucesso("Lote devolvido com sucesso!"); 
-        window.registrarLog("Devolução Lote", `Lote ${lote} devolvido pelo aluno ${aluno.nome}`);
+        window.registrarLog("Devolução", `Lote ${lote} devolvido pelo aluno ${aluno.nome}`);
         if(document.getElementById("adminPage")) window.atualizarDashboardsADM();
         if(document.getElementById("educadorPage")) window.atualizarDashboardEducador();
 
