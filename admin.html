@@ -49,6 +49,15 @@
         .lotes-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
         .img-container { width: 100%; max-height: 400px; display: flex; justify-content: center; background-color: #000; }
         .img-container img { max-width: 100%; max-height: 400px; display: block; }
+
+        /* NOVA PAGINAÇÃO ELEGANTE */
+        .pagination-wrapper { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 1rem; }
+        .btn-page { background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 5px 12px; cursor: pointer; color: var(--dim-grey); transition: 0.2s; font-weight: bold;}
+        .btn-page:hover:not(:disabled) { border-color: var(--petal-pink); color: var(--petal-pink); }
+        .btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
+        .page-input { width: 50px; text-align: center; padding: 4px; border: 1px solid #ccc; border-radius: 6px; outline: none; color: var(--dim-grey); font-weight: bold; }
+        .page-input:focus { border-color: var(--petal-pink); }
+        .page-info { color: var(--dim-grey); font-size: 0.9rem; }
     </style>
 </head>
 <body class="dashboard-body" id="adminPage">
@@ -107,7 +116,19 @@
                     </div>
                 </section>
                 
-                <section id="secGestaoLotes" style="display: none;"><h2 class="section-title">Validação de Lotes Pendentes</h2><div class="table-container" style="overflow-x: auto;"><table class="data-table"><thead><tr><th>Foto</th><th>Nome do Aluno</th><th>Curso/Turma</th><th class="text-center">Qtd. Pendente</th></tr></thead><tbody id="tabelaGestaoLotes"></tbody></table></div></section>
+                <section id="secGestaoLotes" style="display: none;">
+                    <h2 class="section-title">Validação de Lotes Pendentes</h2>
+                    <div style="display: flex; gap: 10px; margin-bottom: 1rem;">
+                        <input type="text" id="buscaGestaoLotes" class="purple-input" placeholder="Pesquisar aluno com lote pendente...">
+                    </div>
+                    <div class="table-container" style="overflow-x: auto;"><table class="data-table"><thead><tr><th>Foto</th><th>Nome do Aluno</th><th>Curso/Turma</th><th class="text-center">Qtd. Pendente</th></tr></thead><tbody id="tabelaGestaoLotes"></tbody></table></div>
+                    <div class="pagination-wrapper">
+                        <button class="btn-page" onclick="mudarPaginaLotes(-1)">&laquo;</button>
+                        <span class="page-info">Pág <input type="number" id="inputPaginaLotes" class="page-input" value="1" min="1" onchange="irParaPaginaLotes(this)"> de <span id="totalPaginasLotes">1</span></span>
+                        <button class="btn-page" onclick="mudarPaginaLotes(1)">&raquo;</button>
+                    </div>
+                </section>
+
                 <section id="secParceiros" style="display: none;"><h2 class="section-title">Gestão de Parceiros</h2><div class="dashboard-grid" style="margin-bottom: 2rem;"><div class="kpi-card"><div class="kpi-title">Arrecadado Parceiros</div><div class="kpi-value highlight-purple" id="kpiParceirosArrecadado">R$ 0,00</div></div><div class="kpi-card"><div class="kpi-title">Projetado Parceiros</div><div class="kpi-value highlight-yellow" id="kpiParceirosProjetado">R$ 0,00</div></div></div><div class="table-container"><table class="data-table"><thead><tr><th>Parceiro</th><th class="text-center">Lotes</th><th class="text-center">Status</th><th class="text-center">Ação</th></tr></thead><tbody id="tabelaParceiros"></tbody></table></div></section>
                 
                 <section id="secRankingAlunos" style="display: none;">
@@ -116,10 +137,10 @@
                         <input type="text" id="buscaRankingAluno" class="purple-input" placeholder="Pesquisar aluno no ranking..." style="flex: 1;">
                     </div>
                     <div class="table-container"><table class="data-table"><thead><tr><th class="text-center">Pos.</th><th>Foto</th><th>Nome do Educando</th><th>Turma</th><th class="text-center">Retirados</th><th class="text-center">Vendidos</th><th class="text-center">Pendentes</th><th class="text-center">Cartelas Ganhas</th><th class="text-center">Fone</th></tr></thead><tbody id="tabelaRankingAlunosADM"></tbody></table></div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
-                        <button class="btn-primary" onclick="changeRankingPage(-1)" style="padding: 5px 15px; background:var(--dim-grey);">&laquo; Anterior</button>
-                        <span id="rankingPageInfo" style="font-weight: bold; color: var(--dim-grey);">Página 1</span>
-                        <button class="btn-primary" onclick="changeRankingPage(1)" style="padding: 5px 15px; background:var(--dim-grey);">Próxima &raquo;</button>
+                    <div class="pagination-wrapper">
+                        <button class="btn-page" onclick="mudarPaginaRanking(-1, 'tabelaRankingAlunosADM')">&laquo;</button>
+                        <span class="page-info">Pág <input type="number" id="inputPaginaRankingAdm" class="page-input" value="1" min="1" onchange="irParaPaginaRanking(this, 'tabelaRankingAlunosADM')"> de <span id="totalPaginasRankingAdm">1</span></span>
+                        <button class="btn-page" onclick="mudarPaginaRanking(1, 'tabelaRankingAlunosADM')">&raquo;</button>
                     </div>
                 </section>
                 
@@ -132,7 +153,16 @@
                 </section>
                 
                 <section id="secLivroCaixa" style="display: none;"><h2 class="section-title">Livro Caixa Geral</h2><div class="table-container"><table class="data-table"><thead><tr><th>Data / Hora</th><th>ID Transação</th><th>Lote</th><th>Educando</th><th>Valor Recebido</th><th>Método</th><th>Educador Responsável</th></tr></thead><tbody id="tabelaLivroCaixa"></tbody></table></div></section>
-                <section id="secLogs" style="display: none;"><h2 class="section-title">Auditoria do Sistema</h2><div class="table-container"><table class="data-table"><thead><tr><th>Data/Hora</th><th>Responsável</th><th>Ação</th><th>Detalhes</th></tr></thead><tbody id="tabelaLogs"></tbody></table></div></section>
+                
+                <section id="secLogs" style="display: none;">
+                    <h2 class="section-title">Auditoria do Sistema</h2>
+                    <div class="table-container"><table class="data-table"><thead><tr><th>Data/Hora</th><th>Responsável</th><th>Ação</th><th>Detalhes</th></tr></thead><tbody id="tabelaLogs"></tbody></table></div>
+                    <div class="pagination-wrapper">
+                        <button class="btn-page" onclick="mudarPaginaLogs(-1)">&laquo;</button>
+                        <span class="page-info">Pág <input type="number" id="inputPaginaLogs" class="page-input" value="1" min="1" onchange="irParaPaginaLogs(this)"> de <span id="totalPaginasLogs">1</span></span>
+                        <button class="btn-page" onclick="mudarPaginaLogs(1)">&raquo;</button>
+                    </div>
+                </section>
             </main>
         </div>
     </div>
