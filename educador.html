@@ -47,14 +47,6 @@
         .chart-wrapper { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-top: 15px;}
         .img-container { width: 100%; max-height: 400px; display: flex; justify-content: center; background-color: #000; }
         .img-container img { max-width: 100%; max-height: 400px; display: block; }
-
-        /* PAGINAÇÃO DISCRETA */
-        .pagination-footer { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 1.5rem; padding: 10px; border-top: 1px solid #eee; }
-        .btn-page { background: #fff; border: 1px solid #ddd; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--dim-grey); transition: 0.2s; }
-        .btn-page:hover:not(:disabled) { border-color: var(--petal-pink); color: var(--petal-pink); }
-        .btn-page:disabled { opacity: 0.4; cursor: not-allowed; }
-        .page-counter { font-size: 0.9rem; color: var(--dim-grey); font-weight: 500; }
-        .page-jump { width: 45px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center; font-weight: bold; color: var(--petal-pink); }
     </style>
 </head>
 <body class="dashboard-body" id="educadorPage">
@@ -130,23 +122,19 @@
 
                 <section id="secRankingEducandos" style="display: none;">
                     <h2 class="section-title" style="border: none;">Ranking Global de Educandos</h2>
-                    <div style="display: flex; gap: 10px; margin-bottom: 1rem; align-items: center;">
-                        <input type="text" id="buscaRankingAluno" class="purple-input" placeholder="Pesquisar aluno no ranking..." style="flex: 1;">
-                    </div>
-                    <div class="table-container" style="overflow-x: auto; width: 100%;">
+                    <div class="table-container" style="overflow-x: auto; width: 100%; margin-bottom: 2rem;">
                         <table class="data-table" style="min-width: 800px;">
-                            <thead><tr><th class="text-center">Pos.</th><th>Foto</th><th>Nome do Educando</th><th>Turma</th><th class="text-center">Retirados</th><th class="text-center">Vendidos</th><th class="text-center">Pendentes</th><th class="text-center">Cartelas Ganhas</th><th class="text-center">Fone</th></tr></thead>
+                            <thead><tr><th class="text-center">Pos.</th><th>Foto</th><th>Nome do Educando</th><th>Turma</th><th class="text-center">Vendidos</th><th class="text-center">Pendentes</th></tr></thead>
                             <tbody id="tabelaRankingEducador"></tbody>
                         </table>
                     </div>
-                    <div class="pagination-footer" id="pagRankingEducador"></div>
                 </section>
 
                 <section id="secRankingEducadores" style="display: none;">
                     <h2 class="section-title" style="border: none;">Ranking Global de Educadores</h2>
                     <div class="table-container" style="overflow-x: auto; width: 100%;">
                         <table class="data-table" style="min-width: 600px;">
-                            <thead><tr><th class="text-center">Posição</th><th>Nome do Educador</th><th>Curso</th><th class="text-center">Lotes Consolidados</th><th class="text-center">Valor Arrecadado</th></tr></thead>
+                            <thead><tr><th style="width: 80px;" class="text-center">Posição</th><th>Nome do Educador</th><th>Curso</th><th class="text-center">Lotes Consolidados</th></tr></thead>
                             <tbody id="tabelaRankingEducadoresLista"></tbody>
                         </table>
                     </div>
@@ -166,6 +154,7 @@
                 <button class="close-modal-btn" onclick="fecharModal('modalDetalhesAluno')"><span class="material-symbols-outlined">close</span></button>
             </div>
             <div class="modal-body" style="padding-top: 1rem;">
+                
                 <div style="text-align: center; margin-bottom: 1rem;">
                     <div style="position: relative; width: 80px; height: 80px; margin: 0 auto 10px auto; cursor: pointer; display: inline-block;" onclick="document.getElementById('inputEditFoto').click()" title="Alterar Foto">
                         <img src="" id="detalheFoto" class="table-avatar" style="width: 100%; height: 100%; border-color: var(--petal-pink); margin: 0; display: block; object-fit: cover;">
@@ -174,9 +163,11 @@
                         </div>
                     </div>
                     <input type="file" id="inputEditFoto" accept="image/*" capture="environment" style="display: none;" onchange="iniciarCorteEdicao(event)">
+                    
                     <h3 id="detalheNome" style="color: var(--dim-grey); margin-bottom: 5px; font-size: 1.4rem;">Nome do Aluno</h3>
                     <p id="detalheTurma" style="color: var(--petal-pink); font-size: 0.95rem; font-weight: 600;">Curso - Turma</p>
                 </div>
+                
                 <div style="background: rgba(188, 104, 161, 0.05); padding: 15px; border: 1px dashed var(--petal-pink); border-radius: 8px; text-align: center; margin-bottom: 1rem;">
                     <h4 style="color: var(--dim-grey); margin-bottom: 10px;">Conquistas de Venda</h4>
                     <div style="display: flex; justify-content: center; gap: 30px;">
@@ -188,15 +179,26 @@
                         <button class="btn-primary" id="btnRetirarCartela" style="width: 100%; background-color: var(--sunflower-gold); color: white;">Confirmar Retirada</button>
                     </div>
                 </div>
+
                 <div class="lotes-info-grid">
-                    <div class="lote-status-box"><span class="status-title" style="color: var(--petal-pink); font-weight:bold;">Lotes Vendidos (<span id="detalheQtdVendidos">0</span>)</span><div class="lotes-badges" id="detalheBadgesVendidos"></div></div>
-                    <div class="lote-status-box"><span class="status-title" style="color: var(--sunflower-gold); font-weight:bold;">Lotes Pendentes (<span id="detalheQtdPendentes">0</span>)</span><div class="lotes-badges" id="detalheBadgesPendentes"></div><p id="msgCliquePendente" style="font-size: 0.75rem; color: #a0a0a0; margin-top: 8px; display: none;">* Clique no lote para validar ou devolver.</p></div>
-                    <div class="lote-status-box" style="margin-bottom: 0;"><span class="status-title" style="color: var(--dim-grey); font-weight:bold;">Lotes Devolvidos (<span id="detalheQtdDevolvidos">0</span>)</span><div class="lotes-badges" id="detalheBadgesDevolvidos"></div></div>
+                    <div class="lote-status-box">
+                        <span class="status-title" style="color: var(--petal-pink); font-weight:bold;">Lotes Vendidos (<span id="detalheQtdVendidos">0</span>)</span>
+                        <div class="lotes-badges" id="detalheBadgesVendidos"></div>
+                    </div>
+                    <div class="lote-status-box">
+                        <span class="status-title" style="color: var(--sunflower-gold); font-weight:bold;">Lotes Pendentes (<span id="detalheQtdPendentes">0</span>)</span>
+                        <div class="lotes-badges" id="detalheBadgesPendentes"></div>
+                        <p id="msgCliquePendente" style="font-size: 0.75rem; color: #a0a0a0; margin-top: 8px; display: none;">* Clique no lote para validar ou devolver.</p>
+                    </div>
+                    <div class="lote-status-box" style="margin-bottom: 0;">
+                        <span class="status-title" style="color: var(--dim-grey); font-weight:bold;">Lotes Devolvidos (<span id="detalheQtdDevolvidos">0</span>)</span>
+                        <div class="lotes-badges" id="detalheBadgesDevolvidos"></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <div class="modal-overlay" id="modalCorteFoto" style="z-index: 10000;"><div class="modal-box" style="width: 95%; max-width: 500px;"><div class="modal-header"><h2>Ajustar Foto</h2><button class="close-modal-btn" onclick="fecharModal('modalCorteFoto')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="padding: 0;"><div class="img-container"><img id="imagemParaCorte" src="" alt="Imagem para cortar"></div><div style="padding: 1rem;"><button class="btn-primary" id="btnConfirmarCorte" style="width: 100%; background-color: var(--petal-pink);">Cortar e Salvar Foto</button></div></div></div></div>
     <div class="modal-overlay" id="modalErro"><div class="modal-box" style="width: 90%; max-width: 400px; text-align: center;"><div class="modal-header"><h2>Ops! Algo deu errado</h2><button class="close-modal-btn" onclick="fecharModal('modalErro')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="padding-top: 1rem;"><span class="material-symbols-outlined" style="font-size: 56px; color: var(--sunflower-gold); margin-bottom: 10px;">error</span><p class="modal-desc" id="textoModalErro" style="font-size: 1.05rem; color: var(--dim-grey); margin-bottom: 1.5rem;"></p><button class="btn-primary" style="background-color: var(--petal-pink); width: 100%;" onclick="fecharModal('modalErro')">Tentar Novamente</button></div></div></div>
     <div class="modal-overlay" id="modalSucesso"><div class="modal-box" style="width: 90%; max-width: 400px;"><div class="modal-header"><h2>Sucesso!</h2><button class="close-modal-btn" onclick="fecharModal('modalSucesso')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="text-align: center;"><span class="material-symbols-outlined" style="font-size: 56px; color: var(--petal-pink); margin-bottom: 1rem;">check_circle</span><p class="modal-desc" id="textoModalSucesso" style="font-size: 1.1rem; color: var(--dim-grey);"></p><button class="btn-primary" onclick="fecharModal('modalSucesso')" style="width: 100%;">Entendido</button></div></div></div>
