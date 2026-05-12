@@ -19,6 +19,13 @@
         .purple-input:focus { border-color: var(--petal-pink) !important; box-shadow: 0 0 0 3px rgba(188, 104, 161, 0.2) !important; }
         .loader { text-align: center; font-size: 1.5rem; color: var(--petal-pink); font-weight: bold; margin: 3rem 0; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+        /* Paginação Elegante */
+        .pagination-footer { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 1.5rem; padding: 10px; border-top: 1px solid #eee; }
+        .btn-page { background: #fff; border: 1px solid #ddd; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--dim-grey); transition: 0.2s; }
+        .btn-page:hover:not(:disabled) { border-color: var(--petal-pink); color: var(--petal-pink); }
+        .page-counter { font-size: 0.9rem; color: var(--dim-grey); font-weight: 500; }
+        .page-jump { width: 45px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center; font-weight: bold; color: var(--petal-pink); }
     </style>
 </head>
 <body>
@@ -45,10 +52,11 @@
                         <tbody id="tabelaRankingAlunosPublico"></tbody>
                     </table>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <button class="btn-primary" onclick="mudarPaginaRankingPublico(-1)" style="padding: 5px 15px; background:var(--dim-grey);">&laquo; Anterior</button>
-                    <span id="infoPaginaPublica" style="font-weight: bold; color: var(--dim-grey);">Página 1</span>
-                    <button class="btn-primary" onclick="mudarPaginaRankingPublico(1)" style="padding: 5px 15px; background:var(--dim-grey);">Próxima &raquo;</button>
+                
+                <div class="pagination-footer">
+                    <button class="btn-page" onclick="mudarPaginaRankingPublico(-1)"><span class="material-symbols-outlined">chevron_left</span></button>
+                    <span class="page-counter">Pág. <input type="number" class="page-jump" id="inputPgPub" value="1" min="1" onchange="irParaPaginaPub(this)"> de <span id="totPgPub">1</span></span>
+                    <button class="btn-page" onclick="mudarPaginaRankingPublico(1)"><span class="material-symbols-outlined">chevron_right</span></button>
                 </div>
             </div>
 
@@ -67,7 +75,16 @@
     </div>
 
     <script>
+        // ==========================================
+        // URL OFICIAL (INSERIDA)
+        // ==========================================
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWD-pi7qf1Vlp01I8CO-7euJmqsNureruSEjeFc9bdYUZ_M13he6bqBC_ctJGHUpc4ow/exec'; 
+
+        function textoIgual(t1, t2) {
+            if(!t1 || !t2) return false;
+            return t1.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() === 
+                   t2.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+        }
 
         let educandosGlobal = [];
         let educadoresGlobal = [];
@@ -99,11 +116,11 @@
             tabelaAlunos.innerHTML = "";
 
             loteAtual.forEach((aluno, index) => {
-                const pos = inicio + index + 1;
+                const posReal = inicio + index + 1; // Contador JS Exato
                 const rec = calcularRecompensas(aluno.lotesVendidos.length);
                 const cartelasHTML = rec.cartelas > 0 ? `<div style="font-weight:bold; color:var(--sunflower-gold);">${rec.cartelas}</div>` : '-';
                 const foneHTML = rec.fone > 0 ? '<span class="material-symbols-outlined" style="color:var(--petal-pink);">headphones</span>' : '-';
-                let posHtml = pos === 1 ? '<span class="material-symbols-outlined" style="color:var(--sunflower-gold); font-size:2rem;">trophy</span>' : `<span style="font-weight:bold; font-size:1.2rem;">${pos}º</span>`;
+                let posHtml = posReal === 1 ? '<span class="material-symbols-outlined" style="color:var(--sunflower-gold); font-size:2rem;">trophy</span>' : `<span style="font-weight:bold; font-size:1.2rem;">${posReal}º</span>`;
                 
                 tabelaAlunos.innerHTML += `<tr>
                     <td class="td-center">${posHtml}</td>
@@ -112,18 +129,25 @@
                     <td style="color: var(--dim-grey);">${aluno.turma}</td>
                     <td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td>
                     <td class="td-center highlight-purple" style="font-size:1.2rem; font-weight:bold;">${aluno.lotesVendidos.length}</td>
-                    <td class="td-center">${aluno.lotesPendentes.length}</td>
+                    <td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td>
                     <td class="td-center">${cartelasHTML}</td>
                     <td class="td-center">${foneHTML}</td>
                 </tr>`;
             });
 
             if (loteAtual.length === 0) tabelaAlunos.innerHTML = '<tr><td colspan="9" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum aluno encontrado no ranking.</td></tr>';
-            document.getElementById("infoPaginaPublica").innerText = `Página ${paginaAtual} de ${totalPaginas}`;
+            
+            document.getElementById("inputPgPub").value = paginaAtual;
+            document.getElementById("totPgPub").innerText = totalPaginas;
         }
 
         window.mudarPaginaRankingPublico = function(dir) {
             paginaAtual += dir;
+            renderizarRankingPagina();
+        }
+
+        window.irParaPaginaPub = function(input) {
+            paginaAtual = parseInt(input.value) || 1;
             renderizarRankingPagina();
         }
 
@@ -146,9 +170,9 @@
                     lotesPendentes: e['Lotes_Pendentes'] ? String(e['Lotes_Pendentes']).split(',').map(s=>s.trim()).filter(Boolean) : []
                 }));
 
-                const educadoresGlobal = data.educadores.map(e => {
+                educadoresGlobal = data.educadores.map(e => {
                     let vendidos = 0;
-                    educandosGlobal.forEach(al => { if(al.educadorResponsavel.toLowerCase() === String(e['Nome']).toLowerCase()) vendidos += al.lotesVendidos.length; });
+                    educandosGlobal.forEach(al => { if(textoIgual(al.educadorResponsavel, e['Nome'])) vendidos += al.lotesVendidos.length; });
                     return { nome: e['Nome'], curso: e['Curso Responsavel'], lotesVendidos: vendidos };
                 });
 
@@ -163,7 +187,7 @@
                         <td class="td-center">${posHtml}</td>
                         <td><strong style="font-size:1.1rem; color:var(--obsidian);">${prof.nome}</strong></td>
                         <td style="color: var(--dim-grey);">${prof.curso}</td>
-                        <td class="td-center" style="font-weight: bold; font-size: 1.2rem;">${prof.lotesVendidos}</td>
+                        <td class="td-center highlight-purple" style="font-weight: bold; font-size: 1.2rem;">${prof.lotesVendidos}</td>
                         <td class="td-center highlight-purple" style="font-weight: bold;">R$ ${valorArrecadado}</td>
                     </tr>`;
                 });
