@@ -48,14 +48,13 @@
         .img-container { width: 100%; max-height: 400px; display: flex; justify-content: center; background-color: #000; }
         .img-container img { max-width: 100%; max-height: 400px; display: block; }
 
-        /* NOVA PAGINAÇÃO ELEGANTE */
-        .pagination-wrapper { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 1rem; }
-        .btn-page { background: #fff; border: 1px solid #ccc; border-radius: 6px; padding: 5px 12px; cursor: pointer; color: var(--dim-grey); transition: 0.2s; font-weight: bold;}
+        /* PAGINAÇÃO DISCRETA */
+        .pagination-footer { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 1.5rem; padding: 10px; border-top: 1px solid #eee; }
+        .btn-page { background: #fff; border: 1px solid #ddd; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--dim-grey); transition: 0.2s; }
         .btn-page:hover:not(:disabled) { border-color: var(--petal-pink); color: var(--petal-pink); }
-        .btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
-        .page-input { width: 50px; text-align: center; padding: 4px; border: 1px solid #ccc; border-radius: 6px; outline: none; color: var(--dim-grey); font-weight: bold; }
-        .page-input:focus { border-color: var(--petal-pink); }
-        .page-info { color: var(--dim-grey); font-size: 0.9rem; }
+        .btn-page:disabled { opacity: 0.4; cursor: not-allowed; }
+        .page-counter { font-size: 0.9rem; color: var(--dim-grey); font-weight: 500; }
+        .page-jump { width: 45px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center; font-weight: bold; color: var(--petal-pink); }
     </style>
 </head>
 <body class="dashboard-body" id="educadorPage">
@@ -140,11 +139,7 @@
                             <tbody id="tabelaRankingEducador"></tbody>
                         </table>
                     </div>
-                    <div class="pagination-wrapper">
-                        <button class="btn-page" onclick="mudarPaginaRanking(-1, 'tabelaRankingEducador')">&laquo;</button>
-                        <span class="page-info">Pág <input type="number" id="inputPaginaRankingEdu" class="page-input" value="1" min="1" onchange="irParaPaginaRanking(this, 'tabelaRankingEducador')"> de <span id="totalPaginasRankingEdu">1</span></span>
-                        <button class="btn-page" onclick="mudarPaginaRanking(1, 'tabelaRankingEducador')">&raquo;</button>
-                    </div>
+                    <div class="pagination-footer" id="pagRankingEducador"></div>
                 </section>
 
                 <section id="secRankingEducadores" style="display: none;">
@@ -201,7 +196,7 @@
             </div>
         </div>
     </div>
-
+    
     <div class="modal-overlay" id="modalCorteFoto" style="z-index: 10000;"><div class="modal-box" style="width: 95%; max-width: 500px;"><div class="modal-header"><h2>Ajustar Foto</h2><button class="close-modal-btn" onclick="fecharModal('modalCorteFoto')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="padding: 0;"><div class="img-container"><img id="imagemParaCorte" src="" alt="Imagem para cortar"></div><div style="padding: 1rem;"><button class="btn-primary" id="btnConfirmarCorte" style="width: 100%; background-color: var(--petal-pink);">Cortar e Salvar Foto</button></div></div></div></div>
     <div class="modal-overlay" id="modalErro"><div class="modal-box" style="width: 90%; max-width: 400px; text-align: center;"><div class="modal-header"><h2>Ops! Algo deu errado</h2><button class="close-modal-btn" onclick="fecharModal('modalErro')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="padding-top: 1rem;"><span class="material-symbols-outlined" style="font-size: 56px; color: var(--sunflower-gold); margin-bottom: 10px;">error</span><p class="modal-desc" id="textoModalErro" style="font-size: 1.05rem; color: var(--dim-grey); margin-bottom: 1.5rem;"></p><button class="btn-primary" style="background-color: var(--petal-pink); width: 100%;" onclick="fecharModal('modalErro')">Tentar Novamente</button></div></div></div>
     <div class="modal-overlay" id="modalSucesso"><div class="modal-box" style="width: 90%; max-width: 400px;"><div class="modal-header"><h2>Sucesso!</h2><button class="close-modal-btn" onclick="fecharModal('modalSucesso')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="text-align: center;"><span class="material-symbols-outlined" style="font-size: 56px; color: var(--petal-pink); margin-bottom: 1rem;">check_circle</span><p class="modal-desc" id="textoModalSucesso" style="font-size: 1.1rem; color: var(--dim-grey);"></p><button class="btn-primary" onclick="fecharModal('modalSucesso')" style="width: 100%;">Entendido</button></div></div></div>
