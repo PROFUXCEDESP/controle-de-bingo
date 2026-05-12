@@ -75,9 +75,7 @@
     </div>
 
     <script>
-        // ==========================================
-        // URL OFICIAL (INSERIDA)
-        // ==========================================
+        // URL OFICIAL
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWD-pi7qf1Vlp01I8CO-7euJmqsNureruSEjeFc9bdYUZ_M13he6bqBC_ctJGHUpc4ow/exec'; 
 
         function textoIgual(t1, t2) {
@@ -116,7 +114,7 @@
             tabelaAlunos.innerHTML = "";
 
             loteAtual.forEach((aluno, index) => {
-                const posReal = inicio + index + 1; // Contador JS Exato
+                const posReal = inicio + index + 1;
                 const rec = calcularRecompensas(aluno.lotesVendidos.length);
                 const cartelasHTML = rec.cartelas > 0 ? `<div style="font-weight:bold; color:var(--sunflower-gold);">${rec.cartelas}</div>` : '-';
                 const foneHTML = rec.fone > 0 ? '<span class="material-symbols-outlined" style="color:var(--petal-pink);">headphones</span>' : '-';
@@ -157,47 +155,52 @@
             renderizarRankingPagina();
         });
 
-        fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'sincronizar_dados' }) })
-        .then(res => res.json())
-        .then(data => {
-            if(data.success) {
-                educandosGlobal = data.educandos.map(e => ({
-                    nome: e['Nome_Educando'] || e['Nome'], 
-                    turma: e['Turma'], 
-                    educadorResponsavel: e['Educador_Responsavel'] || '',
-                    foto: e['Foto_URL'] && String(e['Foto_URL']).trim() !== '' ? e['Foto_URL'] : `https://ui-avatars.com/api/?name=${e['Nome_Educando'] || e['Nome']}&background=BC68A1&color=fff`,
-                    lotesVendidos: e['Lotes_Vendidos'] ? String(e['Lotes_Vendidos']).split(',').map(s=>s.trim()).filter(Boolean) : [],
-                    lotesPendentes: e['Lotes_Pendentes'] ? String(e['Lotes_Pendentes']).split(',').map(s=>s.trim()).filter(Boolean) : []
-                }));
+        function sincronizarPublico() {
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'sincronizar_dados' }) })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    educandosGlobal = data.educandos.map(e => ({
+                        nome: e['Nome_Educando'] || e['Nome'], 
+                        turma: e['Turma'], 
+                        educadorResponsavel: e['Educador_Responsavel'] || '',
+                        foto: e['Foto_URL'] && String(e['Foto_URL']).trim() !== '' ? e['Foto_URL'] : `https://ui-avatars.com/api/?name=${e['Nome_Educando'] || e['Nome']}&background=BC68A1&color=fff`,
+                        lotesVendidos: e['Lotes_Vendidos'] ? String(e['Lotes_Vendidos']).split(',').map(s=>s.trim()).filter(Boolean) : [],
+                        lotesPendentes: e['Lotes_Pendentes'] ? String(e['Lotes_Pendentes']).split(',').map(s=>s.trim()).filter(Boolean) : []
+                    }));
 
-                educadoresGlobal = data.educadores.map(e => {
-                    let vendidos = 0;
-                    educandosGlobal.forEach(al => { if(textoIgual(al.educadorResponsavel, e['Nome'])) vendidos += al.lotesVendidos.length; });
-                    return { nome: e['Nome'], curso: e['Curso Responsavel'], lotesVendidos: vendidos };
-                });
+                    educadoresGlobal = data.educadores.map(e => {
+                        let vendidos = 0;
+                        educandosGlobal.forEach(al => { if(textoIgual(al.educadorResponsavel, e['Nome'])) vendidos += al.lotesVendidos.length; });
+                        return { nome: e['Nome'], curso: e['Curso Responsavel'], lotesVendidos: vendidos };
+                    });
 
-                renderizarRankingPagina();
+                    renderizarRankingPagina();
 
-                const tabelaProf = document.getElementById('tabelaRankingEducadoresPublico');
-                let rankingProf = [...educadoresGlobal].sort((a, b) => b.lotesVendidos - a.lotesVendidos);
-                rankingProf.forEach((prof, index) => {
-                    let posHtml = index === 0 ? '<span class="material-symbols-outlined" style="color:var(--petal-pink); font-size:2rem;">workspace_premium</span>' : `<span style="font-weight:bold; font-size:1.2rem; color:var(--petal-pink);">${index + 1}º</span>`;
-                    const valorArrecadado = (prof.lotesVendidos * 20).toFixed(2).replace('.', ',');
-                    tabelaProf.innerHTML += `<tr>
-                        <td class="td-center">${posHtml}</td>
-                        <td><strong style="font-size:1.1rem; color:var(--obsidian);">${prof.nome}</strong></td>
-                        <td style="color: var(--dim-grey);">${prof.curso}</td>
-                        <td class="td-center highlight-purple" style="font-weight: bold; font-size: 1.2rem;">${prof.lotesVendidos}</td>
-                        <td class="td-center highlight-purple" style="font-weight: bold;">R$ ${valorArrecadado}</td>
-                    </tr>`;
-                });
+                    const tabelaProf = document.getElementById('tabelaRankingEducadoresPublico');
+                    let rankingProf = [...educadoresGlobal].sort((a, b) => b.lotesVendidos - a.lotesVendidos);
+                    tabelaProf.innerHTML = "";
+                    rankingProf.forEach((prof, index) => {
+                        let posHtml = index === 0 ? '<span class="material-symbols-outlined" style="color:var(--petal-pink); font-size:2rem;">workspace_premium</span>' : `<span style="font-weight:bold; font-size:1.2rem; color:var(--petal-pink);">${index + 1}º</span>`;
+                        const valorArrecadado = (prof.lotesVendidos * 20).toFixed(2).replace('.', ',');
+                        tabelaProf.innerHTML += `<tr>
+                            <td class="td-center">${posHtml}</td>
+                            <td><strong style="font-size:1.1rem; color:var(--obsidian);">${prof.nome}</strong></td>
+                            <td style="color: var(--dim-grey);">${prof.curso}</td>
+                            <td class="td-center highlight-purple" style="font-weight: bold; font-size: 1.2rem;">${prof.lotesVendidos}</td>
+                            <td class="td-center highlight-purple" style="font-weight: bold;">R$ ${valorArrecadado}</td>
+                        </tr>`;
+                    });
 
-                document.getElementById('loader').style.display = 'none';
-                document.getElementById('conteudoRanking').style.display = 'block';
-            }
-        }).catch(err => {
-            document.getElementById('loader').innerText = "Erro ao carregar os dados ao vivo. Tente atualizar a página.";
-        });
+                    document.getElementById('loader').style.display = 'none';
+                    document.getElementById('conteudoRanking').style.display = 'block';
+                }
+            }).catch(err => {
+                document.getElementById('loader').innerText = "Erro ao carregar os dados ao vivo. Tente atualizar a página.";
+            });
+        }
+        
+        sincronizarPublico();
     </script>
 </body>
 </html>
