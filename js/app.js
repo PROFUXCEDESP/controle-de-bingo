@@ -220,7 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function calcularRecompensas(qtdVendidos) {
         let fone = qtdVendidos >= 10 ? 1 : 0;
-        let cartelas = qtdVendidos >= 10 ? 1 + Math.floor((qtdVendidos - 10) / 5) : 0;
+        let cartelas = qtdVendidos >= 5 ? 1 + Math.floor((qtdVendidos - 5) / 5) : 0;
         return { fone, cartelas };
     }
 
