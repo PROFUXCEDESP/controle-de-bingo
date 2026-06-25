@@ -1973,3 +1973,11 @@ button:disabled,
         grid-template-columns: 1fr !important;
     }
 }
+
+
+/* v16: remove resumo por educador da tela de lotes disponíveis */
+#secEstoqueLotes .estoque-resumo-card,
+#secEstoqueLotes #tabelaResumoEstoqueEducadores,
+#secEstoqueLotes #totalEducadoresComLotes {
+    display: none !important;
+}

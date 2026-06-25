@@ -891,47 +891,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    function agruparLotesPorEducadorResponsavel(linhas) {
-        const mapa = new Map();
-        (linhas || []).forEach(item => {
-            const nome = String(item.responsavel || '').trim();
-            if (!nome || textoIgual(nome, 'Sede') || textoIgual(nome, 'Educador não informado')) return;
-            if (!mapa.has(nome)) mapa.set(nome, { nome, total: 0, devolvidos: 0, vendaDireta: 0 });
-            const grupo = mapa.get(nome);
-            grupo.total += 1;
-            if (item.classe === 'devolvido') grupo.devolvidos += 1;
-            if (item.classe === 'venda-direta') grupo.vendaDireta += 1;
-        });
-        return Array.from(mapa.values()).sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome, 'pt-BR'));
-    }
-
-    function renderResumoEstoqueEducadores(linhas) {
-        const tabela = document.getElementById('tabelaResumoEstoqueEducadores');
-        const totalEl = document.getElementById('totalEducadoresComLotes');
-        if (!tabela) return;
-        const grupos = agruparLotesPorEducadorResponsavel(linhas);
-        if (totalEl) totalEl.innerText = `${grupos.length} educador(es)`;
-        tabela.innerHTML = grupos.map(grupo => `
-            <tr>
-                <td><strong style="color: var(--dim-grey);">${escaparHTML(grupo.nome)}</strong></td>
-                <td class="td-center"><span class="estoque-count-pill roxo">${grupo.total}</span></td>
-                <td class="td-center"><span class="estoque-count-pill laranja">${grupo.devolvidos}</span></td>
-                <td class="td-center"><span class="estoque-count-pill cinza">${grupo.vendaDireta}</span></td>
-            </tr>
-        `).join('') || `<tr><td colspan="4" class="text-center" style="padding: 1.5rem; color:#a0a0a0;">Nenhum educador com lote em mãos para esta busca.</td></tr>`;
-    }
-
-    window.filtrarEstoquePorEducador = function(nome) {
-        const campoBusca = document.getElementById('buscaEstoqueLotes');
-        window.pages.estoqueLotes.term = nome || '';
-        window.pages.estoqueLotes.educador = '';
-        window.pages.estoqueLotes.current = 1;
-        if (campoBusca) {
-            campoBusca.value = nome || '';
-            campoBusca.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-        window.renderEstoqueLotesAdminPaginado();
-    }
 
     window.renderEstoqueLotesAdminPaginado = function() {
         const tabela = document.getElementById('tabelaEstoqueLotes');
