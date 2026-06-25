@@ -1571,3 +1571,72 @@ button:disabled,
         grid-template-columns: 1fr;
     }
 }
+
+
+/* =========================================================
+   AJUSTES V11 — LOTES DISPONÍVEIS + CONFERÊNCIA VD
+   ========================================================= */
+.estoque-filter-panel {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) minmax(240px, 340px);
+    gap: 1rem;
+    align-items: end;
+    margin-bottom: 1.1rem;
+}
+
+.estoque-filter-panel .estoque-search-wrap {
+    margin-bottom: 0;
+}
+
+.estoque-select-wrap label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #777;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.45rem;
+}
+
+.estoque-select-wrap select.purple-input {
+    height: 52px;
+    cursor: pointer;
+    background-color: #fff;
+}
+
+.modal-caixa-vd-confirmacao {
+    max-width: 540px !important;
+    border-radius: 22px !important;
+    box-shadow: 0 18px 45px rgba(30, 30, 30, 0.16) !important;
+}
+
+.modal-caixa-vd-confirmacao .modal-header {
+    border-bottom: 1px solid #f0f0f0;
+    padding: 1.25rem 1.4rem;
+}
+
+.modal-caixa-vd-confirmacao .modal-body {
+    padding: 1.25rem 1.4rem 1.4rem;
+}
+
+.caixa-vd-confirm-hero {
+    background: #fff !important;
+    border: 1px solid rgba(188, 104, 161, 0.28) !important;
+    box-shadow: 0 10px 24px rgba(30, 30, 30, 0.055) !important;
+}
+
+.caixa-vd-resumo-modal .caixa-vd-resumo-card {
+    border-radius: 16px;
+}
+
+.caixa-vd-confirm-actions .btn-modal-secondary,
+.caixa-vd-confirm-actions .btn-primary {
+    min-height: 48px;
+    border-radius: 14px;
+}
+
+@media (max-width: 760px) {
+    .estoque-filter-panel {
+        grid-template-columns: 1fr;
+    }
+}
