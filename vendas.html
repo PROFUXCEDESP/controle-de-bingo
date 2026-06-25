@@ -3,125 +3,424 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CEDESP Bingo - Vendas Geral</title>
+    <title>CEDESP Bingo - Administração</title>
+    <link rel="icon" href="assets/image/CORACAO_COMUNITA.png" type="image/png">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .purple-input { width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid #ccc; color: var(--dim-grey); font-size: 1rem; outline: none; transition: all 0.3s ease; }
+        .purple-input:focus { border-color: var(--petal-pink) !important; box-shadow: 0 0 0 3px rgba(188, 104, 161, 0.2) !important; }
+        .chart-wrapper { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-top: 15px;}
+        .custom-select-wrapper { position: relative; width: 100%; user-select: none; }
+        .custom-select { position: relative; }
+        .custom-select-trigger { padding: 0.8rem; border-radius: 8px; border: 1px solid #ccc; background: #fff; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease; }
+        .custom-options { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--petal-pink); border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); max-height: 220px; overflow-y: auto; z-index: 999999; display: none; margin-top: 5px; }
+        .custom-select.open .custom-options { display: block; }
+        .custom-option { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #f5f5f5; color: var(--dim-grey); font-size: 0.95rem; }
+        .custom-option:hover { background: #fafafa; color: var(--petal-pink); font-weight: bold; }
+        .custom-select.open .custom-select-trigger, .custom-select-trigger:focus { border-color: var(--petal-pink); box-shadow: 0 0 0 3px rgba(188, 104, 161, 0.2); }
+        input[type="checkbox"].roxo-checkbox { appearance: none; -webkit-appearance: none; min-width: 22px; min-height: 22px; border: 2px solid #ccc; border-radius: 4px; cursor: pointer; position: relative; outline: none; margin-right: 10px; }
+        input[type="checkbox"].roxo-checkbox:checked { background-color: var(--petal-pink); border-color: var(--petal-pink); }
+        input[type="checkbox"].roxo-checkbox:checked::after { content: '✔'; color: white; position: absolute; font-size: 16px; top: -2px; left: 3px; font-weight: bold; }
+        input[type="radio"].amarelo-radio { appearance: none; -webkit-appearance: none; min-width: 22px; min-height: 22px; border: 2px solid #ccc; border-radius: 50%; cursor: pointer; position: relative; outline: none; margin-right: 8px; vertical-align: middle; }
+        input[type="radio"].amarelo-radio:checked { background-color: var(--sunflower-gold); border-color: var(--sunflower-gold); }
+        input[type="radio"].amarelo-radio:checked::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; background-color: white; border-radius: 50%; }
+        .checkbox-list-container { max-height: 180px; overflow-y: auto; border: 1px solid #ccc; border-radius: 8px; background: #fff; }
+        .checkbox-item-row { display: flex; align-items: center; padding: 10px 15px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s; }
+        .checkbox-item-row:hover { background: #fafafa; }
+        #modalTransferirLote .modal-box, #modalTransferirLote .modal-body { overflow: visible !important; }
+        #modalDetalhesAluno .modal-box { max-height: 85vh; display: flex; flex-direction: column; }
+        #modalDetalhesAluno .modal-body { overflow-y: auto; flex: 1; padding-bottom: 25px; padding-right: 5px; }
+        #modalDetalhesAluno .modal-body::-webkit-scrollbar { width: 6px; }
+        #modalDetalhesAluno .modal-body::-webkit-scrollbar-track { background: transparent; }
+        #modalDetalhesAluno .modal-body::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
+        .lote-status-box { padding: 12px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 12px; background: #fafafa; text-align: left;}
+        .lotes-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .img-container { width: 100%; max-height: 400px; display: flex; justify-content: center; background-color: #000; }
+        .img-container img { max-width: 100%; max-height: 400px; display: block; }
+        
+        /* Centralização da paginação discreta */
+        .discrete-pagination { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee; }
+        .btn-page-discrete { background: none; border: none; cursor: pointer; font-size: 1.5rem; color: var(--petal-pink); display: flex; align-items: center; transition: 0.2s; }
+        .btn-page-discrete:hover:not(:disabled) { transform: scale(1.1); }
+        .btn-page-discrete:disabled { color: #ccc; cursor: not-allowed; transform: none; }
+        .page-input-discrete { width: 40px; padding: 4px; text-align: center; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; color: var(--dim-grey); outline: none; }
+        .page-input-discrete:focus { border-color: var(--petal-pink); }
+        
+        /* Remoção das bordas esquerdas dos cards de KPI para UI Clean */
+        .kpi-card { border-left: none !important; }
+    </style>
 </head>
-<body class="dashboard-body" id="vendasPage">
-
+<body class="dashboard-body" id="adminPage">
     <div class="dashboard-wrapper">
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-logo">
-                <img src="assets/image/logo_cedesp.png" alt="Logo CEDESP">
+                <img src="assets/image/logo_cedesp.png" alt="Logo CEDESP" style="max-width: 150px;">
                 <button class="close-sidebar-btn" id="closeSidebar"><span class="material-symbols-outlined">close</span></button>
             </div>
-            
             <ul class="sidebar-nav">
-                <li class="nav-item" onclick="window.location.href='educador.html'"><span class="material-symbols-outlined nav-icon">groups</span> <span class="nav-text">Minha Turma</span></li>
-                <!-- Ícone de gráfico aplicado aqui -->
-                <li class="nav-item active" onclick="window.location.href='vendas.html'"><span class="material-symbols-outlined nav-icon">bar_chart</span> <span class="nav-text">Vendas Geral</span></li>
-                <li class="nav-item" id="btnMenuCadastrar"><span class="material-symbols-outlined nav-icon">person_add</span> <span class="nav-text">Cadastrar Educando</span></li>
-                <li class="nav-item" id="btnMenuAtribuir"><span class="material-symbols-outlined nav-icon">assignment_ind</span> <span class="nav-text">Atribuir Lote</span></li>
-                <li class="nav-item" onclick="window.location.href='ranking.html'"><span class="material-symbols-outlined nav-icon">social_leaderboard</span> <span class="nav-text">Ranking Educandos</span></li>
+                <li class="nav-item active" id="navVisaoGeral" onclick="mudarAbaEducador('secVisaoGeral', 'navVisaoGeral')"><span class="material-symbols-outlined nav-icon">dashboard</span> <span class="nav-text">Visão Geral</span></li>
+                <li class="nav-item" id="navEngajamento" onclick="mudarAbaEducador('secEngajamento', 'navEngajamento')"><span class="material-symbols-outlined nav-icon">monitoring</span> <span class="nav-text">Engajamento</span></li>
+                <li class="nav-item" id="navGestaoLotes" onclick="mudarAbaEducador('secGestaoLotes', 'navGestaoLotes')"><span class="material-symbols-outlined nav-icon">inventory_2</span> <span class="nav-text">Gestão de Lotes</span></li>
+                <li class="nav-item" id="navValidadorCartelaAdm" onclick="mudarAbaEducador('secValidadorCartelaAdm', 'navValidadorCartelaAdm')"><span class="material-symbols-outlined nav-icon">qr_code_scanner</span> <span class="nav-text">Validador</span></li>
+                <li class="nav-item" id="navPendentesLotes" onclick="mudarAbaEducador('secPendentesLotes', 'navPendentesLotes')"><span class="material-symbols-outlined nav-icon">pending_actions</span> <span class="nav-text">Pendentes</span></li>
+                
+                <li class="nav-item" onclick="abrirModal('modalCadastrarColaborador')"><span class="material-symbols-outlined nav-icon">person_add</span> <span class="nav-text">Cadastrar Colaborador</span></li>
+                <li class="nav-item" onclick="abrirModal('modalAtribuirLoteEquipe')"><span class="material-symbols-outlined nav-icon">assignment_ind</span> <span class="nav-text">Lote para Equipe</span></li>
+                
+                <li class="nav-item" onclick="abrirModal('modalCadastrarParceiro')"><span class="material-symbols-outlined nav-icon">storefront</span> <span class="nav-text">Cadastrar Parceiro</span></li>
+                <li class="nav-item" onclick="abrirModal('modalAtribuirLoteParceiro')"><span class="material-symbols-outlined nav-icon">add_business</span> <span class="nav-text">Lote para Parceiro</span></li>
+                
+                <li class="nav-item" id="navParceiros" onclick="mudarAbaEducador('secParceiros', 'navParceiros')"><span class="material-symbols-outlined nav-icon">handshake</span> <span class="nav-text">Parceiros</span></li>
+                <li class="nav-item" id="navRankingAlunos" onclick="mudarAbaEducador('secRankingAlunos', 'navRankingAlunos')"><span class="material-symbols-outlined nav-icon">emoji_events</span> <span class="nav-text">Ranking Educandos</span></li>
+                <li class="nav-item" id="navRankingEducadores" onclick="mudarAbaEducador('secRankingEducadores', 'navRankingEducadores')"><span class="material-symbols-outlined nav-icon">school</span> <span class="nav-text">Ranking Educadores</span></li>
+                <li class="nav-item" id="navRankingEquipe" onclick="mudarAbaEducador('secRankingEquipe', 'navRankingEquipe')"><span class="material-symbols-outlined nav-icon">groups</span> <span class="nav-text">Ranking Equipe</span></li>
+                <li class="nav-item" id="navLivroCaixa" onclick="mudarAbaEducador('secLivroCaixa', 'navLivroCaixa')"><span class="material-symbols-outlined nav-icon">account_balance_wallet</span> <span class="nav-text">Livro Caixa</span></li>
+                <li class="nav-item" id="navLogs" onclick="mudarAbaEducador('secLogs', 'navLogs')"><span class="material-symbols-outlined nav-icon">history</span> <span class="nav-text">Auditoria / Logs</span></li>
             </ul>
-
             <div class="sidebar-footer">
-                <button class="btn-logout" onclick="window.location.href='index.html'"><span class="material-symbols-outlined nav-icon">logout</span> <span class="nav-text">Sair do Sistema</span></button>
+                <button class="btn-logout" onclick="window.location.href='index.html'"><span class="material-symbols-outlined nav-icon">logout</span> <span class="nav-text">Sair</span></button>
             </div>
         </aside>
 
         <div class="main-panel">
             <header class="admin-header">
-                <div class="header-left">
-                    <button class="menu-toggle" id="openSidebar"><span class="material-symbols-outlined">menu</span></button>
-                    <h1 class="admin-title">Vendas Gerais do Bingo</h1>
-                </div>
-                <div class="user-profile">
-                    <span class="user-name" id="nomeEducador">Carregando...</span> 
-                    <span class="user-badge" style="background-color: var(--petal-pink); color: white;">EQUIPE</span>
-                </div>
+                <div class="header-left"><button class="menu-toggle" id="openSidebar"><span class="material-symbols-outlined">menu</span></button><h1 class="admin-title">Painel da Diretoria</h1></div>
+                <div class="user-profile"><span class="user-name" id="nomeEducador">Administrador</span><span class="user-badge">ADM</span></div>
             </header>
 
             <main class="admin-container">
-                <section class="dashboard-grid">
-                    <div class="kpi-card">
-                        <div class="kpi-title">Vendas Consolidadas (Global)</div>
-                        <div class="kpi-value highlight-purple" id="kpiVendasReaisGlobal">R$ 0,00</div>
-                        <div class="kpi-subtitle" id="kpiVendasLotesGlobal">0 lotes vendidos no total</div>
+                <section id="secVisaoGeral">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
+                        <h2 class="section-title" style="margin-bottom: 0; border: none;">Dashboard Financeiro</h2>
+                        <button class="btn-primary" onclick="abrirModal('modalTransferirLote')"><span class="material-symbols-outlined">sync_alt</span> Transferir Lotes</button>
                     </div>
-                    <div class="kpi-card">
-                        <div class="kpi-title">Lotes Pendentes (Global)</div>
-                        <div class="kpi-value highlight-yellow" id="kpiProjecaoGlobal">R$ 0,00</div>
-                        <div class="kpi-subtitle" id="kpiPendentesGlobal">0 lotes aguardando retorno</div>
+                    
+                    <!-- LINHA 1: VENDAS POR CATEGORIA E PROJEÇÃO -->
+                    <div class="dashboard-grid" style="margin-bottom: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div class="kpi-card" style="padding: 15px; text-align: center;">
+                            <div class="kpi-title" style="font-size: 0.85rem; color: #777;">Vendas Educandos</div>
+                            <div class="kpi-value highlight-purple" id="kpiVendasEducandos" style="font-size: 1.4rem;">R$ 0,00</div>
+                        </div>
+                        <div class="kpi-card" style="padding: 15px; text-align: center;">
+                            <div class="kpi-title" style="font-size: 0.85rem; color: #777;">Vendas Diretas</div>
+                            <div class="kpi-value highlight-purple" id="kpiVendasEquipe" style="font-size: 1.4rem;">R$ 0,00</div>
+                        </div>
+                        <div class="kpi-card" style="padding: 15px; text-align: center;">
+                            <div class="kpi-title" style="font-size: 0.85rem; color: #777;">Vendas Parceiros</div>
+                            <div class="kpi-value highlight-purple" id="kpiVendasParceiros" style="font-size: 1.4rem;">R$ 0,00</div>
+                        </div>
+                        <div class="kpi-card" style="background-color: #fdfdfd; padding: 15px; text-align: center;">
+                            <div class="kpi-title" style="font-size: 0.85rem; color: #777;">Projeção Global Restante</div>
+                            <div class="kpi-value" style="color: var(--sunflower-gold); font-size: 1.4rem;" id="kpiProjecaoGlobal">R$ 0,00</div>
+                        </div>
                     </div>
-                    <div class="kpi-card">
-                        <div class="kpi-title">Estoque Disponível (Sede + Equipe)</div>
-                        <div class="kpi-value" style="color: var(--dim-grey);" id="kpiEstoqueReaisGlobal">R$ 0,00</div>
-                        <div class="kpi-subtitle" id="kpiEstoqueLotesGlobal">0 lotes não distribuídos</div>
+                    
+                    <!-- LINHA 2: ARRECADAÇÃO GLOBAL DESTACADA -->
+                    <div class="dashboard-grid" style="margin-bottom: 1.5rem; grid-template-columns: 1fr;">
+                        <div class="kpi-card" style="text-align: center; padding: 2rem;">
+                            <div class="kpi-title" style="font-size: 1.2rem; margin-bottom: 10px;">Arrecadação Global</div>
+                            <div class="kpi-value highlight-purple" id="kpiVendasReaisGlobal" style="font-size: 2.8rem;">R$ 0,00</div>
+                            <div style="margin-top: 15px; display: flex; justify-content: center; gap: 30px; font-weight: bold; font-size: 1.1rem;">
+                                <div style="color: var(--petal-pink);">PIX: <span id="kpiCaixaPix">R$ 0,00</span></div>
+                                <div style="color: #FF9800;">Dinheiro: <span id="kpiCaixaDinheiro">R$ 0,00</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="dashboard-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-top: 1.5rem;">
+                        <div class="chart-wrapper"><h3 style="color: var(--dim-grey); text-align: center;">Panorama de Lotes</h3><div style="height: 250px;"><canvas id="estoqueChart"></canvas></div></div>
+                        <div class="chart-wrapper"><h3 style="color: var(--dim-grey); text-align: center;">Maior Estoque em Mãos</h3><div class="flex-center" style="height: 250px; flex-direction: column; text-align: center; justify-content: center;"><span class="material-symbols-outlined" style="font-size: 48px; color: var(--sunflower-gold);">inventory</span><h2 id="kpiMaiorEstoque" style="color: var(--petal-pink); margin-top: 10px;">Carregando...</h2></div></div>
+                        <div class="chart-wrapper"><h3 style="color: var(--dim-grey); text-align: center;">Financeiro</h3><div style="height: 250px;"><canvas id="financeiroChart"></canvas></div></div>
                     </div>
                 </section>
 
-                <section class="charts-section">
-                    <div class="chart-container">
-                        <h2 class="section-title">Status do Estoque Geral</h2>
-                        <div class="canvas-wrapper doughnut-wrapper">
-                            <canvas id="estoqueChart"></canvas>
+                <section id="secEngajamento" style="display: none;"><h2 class="section-title">Engajamento de Alunos</h2><div class="dashboard-grid" style="margin-bottom: 2rem;"><div class="kpi-card"><div class="kpi-title">Alunos Ativos</div><div class="kpi-value highlight-purple" id="kpiAtivos">0</div></div><div class="kpi-card"><div class="kpi-title">Alunos Inativos</div><div class="kpi-value" style="color:#a0a0a0;" id="kpiInativos">0</div></div><div class="kpi-card"><div class="kpi-title">Taxa de Adesão</div><div class="kpi-value highlight-yellow" id="kpiAdesao">0%</div><div class="kpi-subtitle" id="kpiTotalAlunos">De 282 alunos</div></div></div></section>
+                
+                <section id="secGestaoLotes" style="display: none;">
+                    <h2 class="section-title">Validação de Lotes Pendentes</h2>
+                    <input type="text" id="buscaGestaoLotes" class="purple-input" placeholder="Pesquisar vendedor por nome..." style="margin-bottom: 1rem;">
+                    <div class="table-container" style="overflow-x: auto;">
+                        <table class="data-table" style="width: 100%;">
+                            <thead><tr><th>Foto</th><th>Nome do Vendedor</th><th>Categoria / Turma</th><th class="text-center">Qtd. Pendente</th></tr></thead>
+                            <tbody id="tabelaGestaoLotes"></tbody>
+                        </table>
+                    </div>
+                    <div id="pagLotes"></div>
+                </section>
+
+                <section id="secValidadorCartelaAdm" style="display: none;">
+                    <div class="section-header-actions">
+                        <div>
+                            <h2 class="section-title" style="margin-bottom: 0; border: none;">Validador de Cartela</h2>
+                            <p class="section-helper-text">Digite o número da cartela/lote. Se estiver pendente, o sistema veta automaticamente.</p>
                         </div>
                     </div>
-                    <div class="chart-container">
-                        <h2 class="section-title">Arrecadação (Caixa vs Projeção)</h2>
-                        <div class="canvas-wrapper">
-                            <canvas id="financeiroChart"></canvas>
+                    <div class="validator-card">
+                        <div class="validator-form">
+                            <input type="text" id="inputValidadorCartelaAdm" class="purple-input js-validador-input" placeholder="Digite o lote: ex. LOTE-001 ou PARC-010" data-result-id="resultadoValidadorCartelaAdm" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault(); validarCartelaPendente('inputValidadorCartelaAdm','resultadoValidadorCartelaAdm')}">
+                            <button class="btn-primary" id="btnValidarCartelaAdm" type="button"><span class="material-symbols-outlined">fact_check</span> Validar</button>
+                            <button class="btn-secondary-soft" onclick="limparValidadorCartela('inputValidadorCartelaAdm','resultadoValidadorCartelaAdm')"><span class="material-symbols-outlined">backspace</span> Limpar</button>
                         </div>
+                        <div id="resultadoValidadorCartelaAdm" class="validator-result-area"></div>
                     </div>
+                </section>
+
+                <section id="secPendentesLotes" style="display: none;">
+                    <div class="section-header-actions">
+                        <div>
+                            <h2 class="section-title" style="margin-bottom: 0; border: none;">Pendentes de Educandos</h2>
+                            <p class="section-helper-text"><strong><span id="totalPendentesADM">0</span></strong> lote(s) pendente(s). Cada linha representa um lote, porque a data de retirada pode variar.</p>
+                        </div>
+                        <button class="btn-primary" id="btnExportarPendentesAdm" type="button"><span class="material-symbols-outlined">download</span> Exportar Excel</button>
+                    </div>
+                    <input type="text" id="buscaPendentesAdm" class="purple-input" placeholder="Pesquisar por nome, curso, turma, lote ou responsável..." style="margin-bottom: 1rem;">
+                    <div class="table-container" style="overflow-x: auto;">
+                        <table class="data-table" style="width: 100%;">
+                            <thead><tr><th>Nome</th><th>Curso</th><th>Turma</th><th class="text-center">Lote pendente</th><th>Data de retirada</th><th>Quem atribuiu o lote</th></tr></thead>
+                            <tbody id="tabelaPendentesADM"></tbody>
+                        </table>
+                    </div>
+                    <div id="pagPendentesADM"></div>
+                </section>
+
+                <!-- SEÇÃO DE PARCEIROS (RESTAURADA) -->
+                <section id="secParceiros" style="display: none;">
+                    <h2 class="section-title">Gestão de Parceiros</h2>
+                    <div class="dashboard-grid" style="margin-bottom: 2rem;">
+                        <div class="kpi-card"><div class="kpi-title">Arrecadado Parceiros</div><div class="kpi-value highlight-purple" id="kpiParceirosArrecadado">R$ 0,00</div></div>
+                        <div class="kpi-card"><div class="kpi-title">Projetado Parceiros</div><div class="kpi-value" style="color: var(--sunflower-gold);" id="kpiParceirosProjetado">R$ 0,00</div></div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" style="width: 100%;">
+                            <thead><tr><th>Foto</th><th>Nome do Parceiro</th><th class="text-center">Lotes Consolidados</th><th class="text-center">Valor Arrecadado</th></tr></thead>
+                            <tbody id="tabelaParceirosLista"></tbody>
+                        </table>
+                    </div>
+                    <div id="pagParceiros"></div>
+                </section>
+                
+                <section id="secRankingAlunos" style="display: none;">
+                    <h2 class="section-title">Ranking Geral de Educandos</h2>
+                    <input type="text" id="buscaRankingAluno" class="purple-input" placeholder="Pesquisar educando no ranking..." style="margin-bottom: 1rem;">
+                    <div class="table-container">
+                        <table class="data-table" style="width: 100%;">
+                            <thead><tr><th class="text-center">Pos.</th><th>Foto</th><th>Nome do Educando</th><th>Turma</th><th class="text-center">Retirados</th><th class="text-center">Vendidos</th><th class="text-center">Pendentes</th><th class="text-center">Cartelas Ganhas</th><th class="text-center">Fone</th></tr></thead>
+                            <tbody id="tabelaRankingAlunosADM"></tbody>
+                        </table>
+                    </div>
+                    <div id="pagRankingAlunos"></div>
+                </section>
+                
+                <section id="secRankingEducadores" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
+                        <h2 class="section-title" style="margin-bottom: 0; border: none;">Ranking de Educadores</h2>
+                        <button class="btn-primary" onclick="abrirModal('modalCadastrarEducador')"><span class="material-symbols-outlined">person_add</span> Novo Educador</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table" style="width: 100%;">
+                            <thead><tr><th class="text-center">Posição</th><th>Nome do Educador</th><th>Curso</th><th class="text-center">Lotes Consolidados</th><th class="text-center">Valor Arrecadado</th></tr></thead>
+                            <tbody id="tabelaRankingEducadoresADM"></tbody>
+                        </table>
+                    </div>
+                    <div id="pagRankingEducadores"></div>
+                </section>
+
+                <section id="secRankingEquipe" style="display: none;">
+                    <h2 class="section-title">Ranking da Equipe (Vendas Diretas)</h2>
+                    <div class="table-container">
+                        <table class="data-table" style="width: 100%;">
+                            <thead><tr><th class="text-center">Pos.</th><th>Foto</th><th>Nome do Colaborador</th><th class="text-center">Lotes Consolidados</th><th class="text-center">Valor Arrecadado</th></tr></thead>
+                            <tbody id="tabelaRankingEquipeADM"></tbody>
+                        </table>
+                    </div>
+                    <div id="pagRankingEquipe"></div>
+                </section>
+                
+                <section id="secLivroCaixa" style="display: none;">
+                    <h2 class="section-title">Livro Caixa Geral</h2>
+                    <div class="table-container">
+                        <table class="data-table" style="width: 100%;">
+                            <thead><tr><th>Data / Hora</th><th>ID Transação</th><th>Lote</th><th>Educando</th><th>Valor Recebido</th><th>Método</th><th>Educador Responsável</th></tr></thead>
+                            <tbody id="tabelaLivroCaixa"></tbody>
+                        </table>
+                    </div>
+                    <div id="pagLivroCaixa"></div>
+                </section>
+                
+                <section id="secLogs" style="display: none;">
+                    <h2 class="section-title">Auditoria do Sistema</h2>
+                    <div class="table-container">
+                        <table class="data-table" style="width: 100%;">
+                            <thead><tr><th>Data/Hora</th><th>Responsável</th><th>Ação</th><th>Detalhes</th></tr></thead>
+                            <tbody id="tabelaLogs"></tbody>
+                        </table>
+                    </div>
+                    <div id="pagLogs"></div>
                 </section>
             </main>
         </div>
     </div>
 
-    <!-- MODAIS EMBUTIDOS PARA FUNCIONAREM NESTA TELA TAMBÉM -->
-    <div class="modal-overlay" id="modalCadastrar">
-        <div class="modal-box">
-            <div class="modal-header"><h2>Cadastrar Educando</h2><button class="close-modal-btn" onclick="fecharModal('modalCadastrar')"><span class="material-symbols-outlined">close</span></button></div>
+    <!-- MODAIS DO SISTEMA -->
+    <div class="modal-overlay" id="modalTransferirLote"><div class="modal-box" style="width: 90%; max-width: 450px;"><div class="modal-header"><h2>Transferir Lotes da Sede</h2><button class="close-modal-btn" onclick="fecharModal('modalTransferirLote')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body"><form id="formTransferirLote"><div class="form-group"><label style="color: var(--dim-grey); font-weight: bold; margin-bottom: 5px; display: block;">Lotes Disponíveis:</label><div class="checkbox-list-container" id="listaLotesSede" style="margin-bottom: 15px;"></div></div><div class="form-group"><label style="color: var(--dim-grey); font-weight: bold; margin-bottom: 5px; display: block;">Para o Educador:</label><div class="custom-select-wrapper" id="wrapperEducadorDestino"><div class="custom-select"><div class="custom-select-trigger"><span class="trigger-text" style="color: var(--dim-grey);">Selecione o destino...</span><span class="material-symbols-outlined arrow-icon">expand_more</span></div><div class="custom-options" id="opcoesEducadorDestino"></div></div><input type="hidden" id="educadorDestinoVal" required></div></div><button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Confirmar Transferência</button></form></div></div></div>
+    
+    <div class="modal-overlay" id="modalDetalhesAluno">
+        <div class="modal-box" style="width: 90%; max-width: 450px;">
+            <div class="modal-header">
+                <h2>Ficha do Vendedor</h2>
+                <button class="close-modal-btn" onclick="fecharModal('modalDetalhesAluno')"><span class="material-symbols-outlined">close</span></button>
+            </div>
+            <div class="modal-body" style="padding-top: 1rem;">
+                <div style="text-align: center; margin-bottom: 1rem;">
+                    <div style="position: relative; width: 80px; height: 80px; margin: 0 auto 10px auto; cursor: pointer; display: inline-block;" onclick="document.getElementById('inputEditFoto').click()" title="Alterar Foto">
+                        <img src="" id="detalheFoto" class="table-avatar" style="width: 100%; height: 100%; border-color: var(--petal-pink); margin: 0; display: block; object-fit: cover;">
+                        <div style="position: absolute; bottom: -2px; right: -5px; background: var(--petal-pink); color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+                            <span class="material-symbols-outlined" style="font-size: 16px;">edit</span>
+                        </div>
+                    </div>
+                    <input type="file" id="inputEditFoto" accept="image/*" capture="environment" style="display: none;" onchange="iniciarCorteEdicao(event)">
+                    
+                    <h3 id="detalheNome" style="color: var(--dim-grey); margin-bottom: 5px; font-size: 1.4rem;">Nome do Aluno</h3>
+                    <p id="detalheTurma" style="color: var(--petal-pink); font-size: 0.95rem; font-weight: 600;">Curso - Turma</p>
+                </div>
+                
+                <div style="background: rgba(188, 104, 161, 0.05); padding: 15px; border: 1px dashed var(--petal-pink); border-radius: 8px; text-align: center; margin-bottom: 1rem;">
+                    <h4 style="color: var(--dim-grey); margin-bottom: 10px;">Conquistas de Venda</h4>
+                    <div style="display: flex; justify-content: center; gap: 30px;">
+                        <div><span class="material-symbols-outlined" style="color: var(--petal-pink); font-size: 28px;">headphones</span><br><strong style="font-size: 1.1rem;"><span id="detalheFone">0</span> Fone(s)</strong></div>
+                        <div><span class="material-symbols-outlined" style="color: var(--sunflower-gold); font-size: 28px;">description</span><br><strong style="font-size: 1.1rem;"><span id="detalheCartelasGanhas">0</span> Cartela(s)</strong></div>
+                    </div>
+                    <div id="boxRetirarCartela" style="margin-top: 15px; display: none;">
+                        <p style="color: var(--obsidian); font-size: 0.85rem; margin-bottom: 8px;"><strong><span id="detalheCartelasPendentes"></span> cartela(s) extra(s)</strong> prontas para entrega.</p>
+                        <button class="btn-primary" id="btnRetirarCartela" style="width: 100%; background-color: var(--sunflower-gold); color: white;">Confirmar Retirada</button>
+                    </div>
+                </div>
+                <div class="lotes-info-grid">
+                    <div class="lote-status-box"><span class="status-title" style="color: var(--petal-pink); font-weight:bold;">Lotes Vendidos (<span id="detalheQtdVendidos">0</span>)</span><div class="lotes-badges" id="detalheBadgesVendidos"></div></div>
+                    <div class="lote-status-box"><span class="status-title" style="color: var(--sunflower-gold); font-weight:bold;">Lotes Pendentes (<span id="detalheQtdPendentes">0</span>)</span><div class="lotes-badges" id="detalheBadgesPendentes"></div><p id="msgCliquePendente" style="font-size: 0.75rem; color: #a0a0a0; margin-top: 8px; display: none;">* Clique no lote para validar ou devolver.</p></div>
+                    <div class="lote-status-box" style="margin-bottom: 0;"><span class="status-title" style="color: var(--dim-grey); font-weight:bold;">Lotes Devolvidos (<span id="detalheQtdDevolvidos">0</span>)</span><div class="lotes-badges" id="detalheBadgesDevolvidos"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="modalAcaoLote"><div class="modal-box" style="width: 90%; max-width: 400px;"><div class="modal-header"><h2>Validação de Lote</h2><button class="close-modal-btn" onclick="fecharModal('modalAcaoLote')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body"><div style="text-align: center; margin-bottom: 1rem;"><h3 style="color: var(--petal-pink); font-size: 1.5rem; margin-bottom: 5px;" id="acaoLoteNome">LOTE-XX</h3><p style="color: var(--dim-grey); font-weight: bold;">Vendedor: <span id="acaoLoteAluno">Nome</span></p></div><input type="hidden" id="acaoLoteInput"><input type="hidden" id="acaoAlunoIdxInput"><div class="form-group"><label style="font-weight: bold; color: var(--dim-grey);">Forma de Pagamento (R$ 20,00)</label><div style="display: flex; gap: 15px; margin-top: 10px; margin-bottom: 15px;"><label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="formaPagamentoLote" value="PIX" class="amarelo-radio" checked onchange="toggleMisto(false)"> PIX</label><label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="formaPagamentoLote" value="Dinheiro" class="amarelo-radio" onchange="toggleMisto(false)"> Dinheiro</label><label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="formaPagamentoLote" value="Misto" class="amarelo-radio" onchange="toggleMisto(true)"> Misto</label></div><div id="camposMisto" style="display: none; gap: 10px;"><div class="form-group" style="flex: 1;"><label>Valor PIX (R$)</label><input type="number" id="valorPixMisto" step="0.01" class="purple-input"></div><div class="form-group" style="flex: 1;"><label>Valor Dinheiro (R$)</label><input type="number" id="valorDinMisto" step="0.01" class="purple-input"></div></div></div><div style="display: flex; gap: 10px; margin-top: 1rem;"><button class="btn-primary" style="flex: 1; background-color: var(--sunflower-gold);" onclick="confirmarDevolucaoLote()">Devolver Lote</button><button class="btn-primary" style="flex: 1;" onclick="confirmarVendaLote()">Confirmar Venda</button></div></div></div></div>
+    
+    <div class="modal-overlay" id="modalCadastrarEducador"><div class="modal-box" style="width: 90%; max-width: 400px;"><div class="modal-header"><h2>Cadastrar Educador</h2><button class="close-modal-btn" onclick="fecharModal('modalCadastrarEducador')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body"><form id="formCadastrarEducador"><div class="form-group"><label style="font-weight: bold; color: var(--dim-grey); margin-bottom: 5px; display: block;">Nome do Educador</label><input type="text" id="novoNomeEducador" class="purple-input" required></div><div class="form-group"><label style="font-weight: bold; color: var(--dim-grey); margin-bottom: 5px; display: block;">Curso Responsável</label><input type="text" id="novoCursoEducador" class="purple-input" required placeholder="Ex: Auxiliar Administrativo"></div><button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Salvar Educador</button></form></div></div></div>
+    <div class="modal-overlay" id="modalCorteFoto" style="z-index: 10000;"><div class="modal-box" style="width: 95%; max-width: 500px;"><div class="modal-header"><h2>Ajustar Foto</h2><button class="close-modal-btn" onclick="fecharModal('modalCorteFoto')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="padding: 0;"><div class="img-container"><img id="imagemParaCorte" src="" alt="Imagem para cortar"></div><div style="padding: 1rem;"><button class="btn-primary" id="btnConfirmarCorte" style="width: 100%; background-color: var(--petal-pink);">Cortar e Salvar Foto</button></div></div></div></div>
+    <div class="modal-overlay" id="modalErro"><div class="modal-box" style="width: 90%; max-width: 400px; text-align: center;"><div class="modal-header"><h2>Ops! Algo deu errado</h2><button class="close-modal-btn" onclick="fecharModal('modalErro')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="padding-top: 1rem;"><span class="material-symbols-outlined" style="font-size: 56px; color: var(--sunflower-gold); margin-bottom: 10px;">error</span><p class="modal-desc" id="textoModalErro" style="font-size: 1.05rem; color: var(--dim-grey); margin-bottom: 1.5rem;"></p><button class="btn-primary" style="background-color: var(--petal-pink); width: 100%;" onclick="fecharModal('modalErro')">Tentar Novamente</button></div></div></div>
+    <div class="modal-overlay" id="modalSucesso"><div class="modal-box" style="width: 90%; max-width: 400px;"><div class="modal-header"><h2>Sucesso!</h2><button class="close-modal-btn" onclick="fecharModal('modalSucesso')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="text-align: center;"><span class="material-symbols-outlined" style="font-size: 56px; color: var(--petal-pink); margin-bottom: 1rem;">check_circle</span><p class="modal-desc" id="textoModalSucesso" style="font-size: 1.1rem; color: var(--dim-grey);"></p><button class="btn-primary" onclick="fecharModal('modalSucesso')" style="width: 100%;">Entendido</button></div></div></div>
+
+    <div class="modal-overlay" id="modalCadastrarColaborador">
+        <div class="modal-box" style="width: 90%; max-width: 400px;">
+            <div class="modal-header">
+                <h2>Cadastrar Colaborador</h2>
+                <button class="close-modal-btn" onclick="fecharModal('modalCadastrarColaborador')"><span class="material-symbols-outlined">close</span></button>
+            </div>
             <div class="modal-body">
-                <form id="formCadastrar">
-                    <div class="photo-capture-container"><div class="photo-ellipse" id="btnTirarFoto"><span class="material-symbols-outlined icon-filled" style="font-size: 32px;">add_a_photo</span><span style="font-size: 0.85rem; margin-top: 5px; font-weight: 600;">Tirar Foto</span></div></div>
+                <form id="formCadastrarColaborador">
                     <div class="form-group">
-                        <label>Nome do Educando</label>
-                        <div class="custom-select-wrapper"><div class="custom-select" id="selectNomeEducando"><div class="custom-select-trigger"><span class="trigger-text" style="color: #a0a0a0;">Selecione o educando</span><span class="material-symbols-outlined arrow-icon">expand_more</span></div><div class="custom-options" id="opcoesNomeEducando"></div></div><input type="hidden" id="nomeEducandoVal" required></div>
+                        <label style="font-weight: bold; color: var(--dim-grey); margin-bottom: 5px; display: block;">Nome do Colaborador</label>
+                        <input type="text" id="nomeColaboradorInput" class="purple-input" required placeholder="Ex: Hildeson Fonseca">
                     </div>
-                    <div class="form-group">
-                        <label>Turma do Educando</label>
-                        <div class="custom-select-wrapper"><div class="custom-select" id="selectTurmaAluno"><div class="custom-select-trigger"><span class="trigger-text" style="color: #a0a0a0;">Selecione a turma</span><span class="material-symbols-outlined arrow-icon">expand_more</span></div><div class="custom-options"><span class="custom-option" data-value="Turma 1">Turma 1</span><span class="custom-option" data-value="Turma 2">Turma 2</span><span class="custom-option" data-value="Turma 3">Turma 3</span><span class="custom-option" data-value="Turma 4">Turma 4</span></div></div><input type="hidden" id="turmaAluno" required></div>
+                    <div class="form-group" style="text-align: center; margin-top: 15px;">
+                        <label style="font-weight: bold; color: var(--dim-grey); margin-bottom: 5px; display: block;">Foto do Colaborador</label>
+                        <div style="position: relative; width: 100px; height: 100px; margin: 0 auto; background: #eee; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer;" onclick="document.getElementById('inputFotoColaborador').click()">
+                            <span class="material-symbols-outlined" id="iconCameraColaborador" style="font-size: 32px; color: #aaa;">add_a_photo</span>
+                            <img id="previewFotoColaborador" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: none;">
+                        </div>
+                        <input type="file" id="inputFotoColaborador" accept="image/*" capture="environment" style="display: none;" onchange="window.iniciarCorteColaborador(event)">
                     </div>
-                    <button type="submit" class="btn-primary">Salvar Educando</button>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 15px;">Salvar Colaborador</button>
                 </form>
             </div>
         </div>
     </div>
 
-    <div class="modal-overlay" id="modalAtribuir">
-        <div class="modal-box">
-            <div class="modal-header"><h2>Atribuir Lote</h2><button class="close-modal-btn" onclick="fecharModal('modalAtribuir')"><span class="material-symbols-outlined">close</span></button></div>
+    <div class="modal-overlay" id="modalAtribuirLoteEquipe">
+        <div class="modal-box" style="width: 90%; max-width: 450px;">
+            <div class="modal-header">
+                <h2>Atribuir Lotes à Equipe</h2>
+                <button class="close-modal-btn" onclick="fecharModal('modalAtribuirLoteEquipe')"><span class="material-symbols-outlined">close</span></button>
+            </div>
             <div class="modal-body">
-                <form id="formAtribuir">
-                    <div class="form-group" id="containerLotesAtribuir"><label>Lotes Disponíveis (Marque para atribuir)</label><div class="checkbox-list" id="listaLotesAtribuir"></div></div>
+                <form id="formAtribuirLoteEquipe">
                     <div class="form-group">
-                        <label>Selecione o Educando</label>
-                        <div class="custom-select-wrapper"><div class="custom-select" id="selectAlunoDestino"><div class="custom-select-trigger"><span class="trigger-text" style="color: #a0a0a0;">Escolha o aluno...</span><span class="material-symbols-outlined arrow-icon">expand_more</span></div><div class="custom-options" id="opcoesAlunoDestino"></div></div><input type="hidden" id="alunoDestinoVal" required></div>
+                        <label style="color: var(--dim-grey); font-weight: bold; margin-bottom: 5px; display: block;">Lotes Disponíveis (Filtro EQU)</label>
+                        <div class="checkbox-list-container" id="listaLotesEquipeCheckboxes" style="margin-bottom: 15px;"></div>
                     </div>
-                    <button type="submit" class="btn-primary" id="btnConfirmarAtribuicao" disabled>Atribuir Lotes</button>
+                    <div class="form-group">
+                        <label style="color: var(--dim-grey); font-weight: bold; margin-bottom: 5px; display: block;">Selecione o Colaborador</label>
+                        <div class="custom-select-wrapper" id="wrapperEquipeAtribuir">
+                            <div class="custom-select">
+                                <div class="custom-select-trigger">
+                                    <span class="trigger-text" style="color: var(--dim-grey);">Escolha o colaborador...</span>
+                                    <span class="material-symbols-outlined arrow-icon">expand_more</span>
+                                </div>
+                                <div class="custom-options" id="opcoesEquipeAtribuir"></div>
+                            </div>
+                            <input type="hidden" id="equipeAtribuirSelect" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Confirmar Atribuição</button>
                 </form>
             </div>
         </div>
     </div>
 
-    <div class="modal-overlay" id="modalSucesso">
-        <div class="modal-box"><div class="modal-header"><h2>Sucesso!</h2><button class="close-modal-btn" onclick="fecharModal('modalSucesso')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="text-align: center;"><span class="material-symbols-outlined" style="font-size: 56px; color: var(--petal-pink); margin-bottom: 1rem;">check_circle</span><p class="modal-desc" id="textoModalSucesso" style="font-size: 1.1rem; color: var(--dim-grey);"></p><button class="btn-primary" onclick="fecharModal('modalSucesso')">Entendido</button></div></div>
+    <div class="modal-overlay" id="modalCadastrarParceiro">
+        <div class="modal-box" style="width: 90%; max-width: 450px;">
+            <div class="modal-header">
+                <h2>Cadastrar Parceiro</h2>
+                <button class="close-modal-btn" onclick="fecharModal('modalCadastrarParceiro')"><span class="material-symbols-outlined">close</span></button>
+            </div>
+            <div class="modal-body">
+                <form id="formCadastrarParceiro">
+                    <div class="form-group">
+                        <label style="font-weight: bold; color: var(--dim-grey); margin-bottom: 5px; display: block;">Nome do Parceiro / Comércio</label>
+                        <input type="text" id="nomeParceiroInput" class="purple-input" required placeholder="Ex: Padaria do Zé">
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Salvar Parceiro</button>
+                </form>
+            </div>
+        </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <script src="js/app.js"></script>
+    <div class="modal-overlay" id="modalAtribuirLoteParceiro">
+        <div class="modal-box" style="width: 90%; max-width: 450px;">
+            <div class="modal-header">
+                <h2>Atribuir Lotes (PARC) ao Parceiro</h2>
+                <button class="close-modal-btn" onclick="fecharModal('modalAtribuirLoteParceiro')"><span class="material-symbols-outlined">close</span></button>
+            </div>
+            <div class="modal-body">
+                <form id="formAtribuirLoteParceiro">
+                    <div class="form-group">
+                        <label style="color: var(--dim-grey); font-weight: bold; margin-bottom: 5px; display: block;">Lotes Disponíveis (Filtro PARC)</label>
+                        <div class="checkbox-list-container" id="listaLotesParceirosCheckboxes" style="margin-bottom: 15px;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label style="color: var(--dim-grey); font-weight: bold; margin-bottom: 5px; display: block;">Selecione o Parceiro</label>
+                        <div class="custom-select-wrapper" id="wrapperParceiroAtribuir">
+                            <div class="custom-select">
+                                <div class="custom-select-trigger">
+                                    <span class="trigger-text" style="color: var(--dim-grey);">Escolha o parceiro...</span>
+                                    <span class="material-symbols-outlined arrow-icon">expand_more</span>
+                                </div>
+                                <div class="custom-options" id="opcoesParceiroAtribuir"></div>
+                            </div>
+                            <input type="hidden" id="parceiroAtribuirSelect" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Confirmar Atribuição</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js?v=20260625-2"></script>
 </body>
 </html>
