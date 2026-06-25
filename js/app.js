@@ -1206,23 +1206,45 @@ document.addEventListener("DOMContentLoaded", () => {
         renderPaginationUI('pagCaixaVendaDireta', 'caixaVD', linhas.length, 10, 'renderCaixaVendaDiretaAdminPaginado');
     }
 
+    function preencherModalConferenciaVendaDireta(resumo) {
+        const setTxt = (id, valor) => { const el = document.getElementById(id); if (el) el.innerText = valor; };
+        setTxt('modalVDPix', moedaBR(resumo.pixPendente));
+        setTxt('modalVDDinheiro', moedaBR(resumo.dinheiroPendente));
+        setTxt('modalVDTotal', moedaBR(resumo.totalPendente));
+        setTxt('modalVDQtd', String(resumo.qtdPendente));
+    }
+
     window.conferirCaixaVendaDireta = function() {
         const resumo = resumirCaixaVendaDireta();
         if (resumo.qtdPendente === 0) return window.abrirModalErro('Não há lançamentos de venda direta pendentes para conferir.');
-        const confirmar = window.confirm(`Conferir ${resumo.qtdPendente} lançamento(s) da Venda Direta e juntar ${moedaBR(resumo.totalPendente)} ao Caixa Oficial?`);
-        if (!confirmar) return;
-        const btn = document.getElementById('btnConferirCaixaVendaDireta');
-        if (btn) { btn.disabled = true; btn.innerText = 'Conferindo...'; }
+        preencherModalConferenciaVendaDireta(resumo);
+        window.abrirModal('modalConfirmarConferenciaVD');
+    }
+
+    window.executarConferenciaCaixaVendaDireta = function() {
+        const resumo = resumirCaixaVendaDireta();
+        if (resumo.qtdPendente === 0) {
+            window.fecharModal('modalConfirmarConferenciaVD');
+            return window.abrirModalErro('Não há lançamentos de venda direta pendentes para conferir.');
+        }
+        const btn = document.getElementById('btnExecutarConferenciaVD');
+        const btnHeader = document.getElementById('btnConferirCaixaVendaDireta');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-symbols-outlined">hourglass_top</span> Conferindo...'; }
+        if (btnHeader) btnHeader.disabled = true;
         fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'conferir_caixa_venda_direta', responsavel: userName }) })
             .then(res => res.json())
             .then(data => {
                 if (!data.success) throw new Error(data.message || 'Falha ao conferir caixa.');
+                window.fecharModal('modalConfirmarConferenciaVD');
                 window.abrirModalSucesso(data.message || 'Venda Direta conferida e juntada ao Caixa Oficial.');
                 window.registrarLog('Conferência Caixa Venda Direta', `Conferiu ${data.qtd || resumo.qtdPendente} lançamento(s) e juntou ${moedaBR(data.total || resumo.totalPendente)} ao caixa oficial.`);
                 window.carregarDadosDoBanco(true);
             })
             .catch(err => window.abrirModalErro(err.message || 'Erro ao conferir Venda Direta.'))
-            .finally(() => { if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">verified</span> Conferir e juntar ao caixa oficial'; } });
+            .finally(() => {
+                if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">verified</span> Confirmar conferência'; }
+                if (btnHeader) { btnHeader.disabled = false; btnHeader.innerHTML = '<span class="material-symbols-outlined">verified</span> Conferir e juntar ao caixa oficial'; }
+            });
     }
 
     window.renderLivroCaixaPaginado = function() {
