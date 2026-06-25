@@ -1640,3 +1640,101 @@ button:disabled,
         grid-template-columns: 1fr;
     }
 }
+
+/* =========================================================
+   AJUSTES V12 — RESUMO DE LOTES EM MÃOS POR EDUCADOR
+   ========================================================= */
+.estoque-resumo-card {
+    padding: 1.1rem;
+    border-radius: 16px;
+    background: #fff;
+    border: 1px solid #f0f0f0;
+    box-shadow: var(--shadow-sm);
+}
+
+.estoque-resumo-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.estoque-resumo-title {
+    margin: 0 0 0.25rem;
+    color: var(--dim-grey);
+    font-size: 1rem;
+    font-weight: 900;
+}
+
+.estoque-resumo-total {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 0.35rem 0.8rem;
+    border-radius: 999px;
+    border: 1px solid rgba(188, 104, 161, 0.22);
+    background: rgba(188, 104, 161, 0.08);
+    color: var(--petal-pink);
+    font-size: 0.8rem;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.estoque-resumo-table td,
+.estoque-resumo-table th {
+    vertical-align: middle;
+}
+
+.estoque-count-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 42px;
+    padding: 0.32rem 0.65rem;
+    border-radius: 999px;
+    font-weight: 900;
+    font-size: 0.82rem;
+}
+
+.estoque-count-pill.roxo {
+    color: var(--petal-pink);
+    background: rgba(188, 104, 161, 0.10);
+    border: 1px solid rgba(188, 104, 161, 0.22);
+}
+
+.estoque-count-pill.laranja {
+    color: var(--burnt-peach);
+    background: rgba(232, 126, 85, 0.12);
+    border: 1px solid rgba(232, 126, 85, 0.24);
+}
+
+.estoque-count-pill.cinza {
+    color: var(--dim-grey);
+    background: #f6f6f6;
+    border: 1px solid #e9e9e9;
+}
+
+.estoque-filter-mini-btn {
+    min-height: 34px;
+    padding: 0.4rem 0.7rem !important;
+    font-size: 0.78rem !important;
+    border-radius: 10px !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.estoque-filter-mini-btn .material-symbols-outlined {
+    font-size: 1rem;
+}
+
+@media (max-width: 640px) {
+    .estoque-resumo-header {
+        flex-direction: column;
+    }
+    .estoque-resumo-total {
+        width: 100%;
+    }
+}
