@@ -392,6 +392,81 @@ document.addEventListener("DOMContentLoaded", () => {
         return { status: 'NÃO ENCONTRADA', tipoAlerta: 'danger', pessoa: null, lote: codigo, motivo: 'Não localizei essa cartela/lote nas bases carregadas. Confira a numeração antes de validar.' };
     }
 
+    function montarDetalhesResultadoValidador(resultado) {
+        const pessoa = resultado.pessoa;
+        const detalhesPessoa = pessoa ? `
+            <div class="validador-meta"><strong>Nome:</strong> ${escaparHTML(pessoa.nome)}</div>
+            <div class="validador-meta"><strong>Curso:</strong> ${escaparHTML(pessoa.curso || '-')}</div>
+            <div class="validador-meta"><strong>Turma/Categoria:</strong> ${escaparHTML(pessoa.turma || pessoa.tipo || '-')}</div>
+            <div class="validador-meta"><strong>Tipo:</strong> ${escaparHTML(pessoa.tipo || 'Educando')}</div>
+        ` : '';
+
+        return `
+            <div class="validador-result ${resultado.tipoAlerta}">
+                <div class="validador-status">${escaparHTML(resultado.status)}</div>
+                <div class="validador-lote">${escaparHTML(resultado.lote)}</div>
+                <p>${escaparHTML(resultado.motivo)}</p>
+                ${detalhesPessoa}
+            </div>
+        `;
+    }
+
+    function coletarLotesParaValidador() {
+        const pessoas = [
+            ...window.todosEducandosBD.map(p => ({ ...p, tipo: p.turma === 'Equipe' ? 'Equipe' : 'Educando' })),
+            ...window.todosParceirosBD.map(p => ({ ...p, tipo: 'Parceiro' }))
+        ];
+
+        const itens = [];
+        pessoas.forEach(pessoa => {
+            (pessoa.lotesPendentes || []).forEach(lote => itens.push({ lote, status: 'PENDENTE / VETADA', classe: 'danger', pessoa }));
+            (pessoa.lotesVendidos || []).forEach(lote => itens.push({ lote, status: 'VENDIDA / VÁLIDA', classe: 'success', pessoa }));
+            (pessoa.lotesDevolvidos || []).forEach(lote => itens.push({ lote, status: 'DEVOLVIDA / NÃO VÁLIDA', classe: 'warning', pessoa }));
+        });
+
+        (window.lotesSedeBD || []).forEach(item => {
+            itens.push({ lote: item.codigo, status: item.educador ? `COM ${item.educador} / NÃO VENDIDA` : 'SEDE / NÃO VENDIDA', classe: 'warning', pessoa: null });
+        });
+
+        const mapa = new Map();
+        itens.forEach(item => {
+            const chave = normalizarCodigoLote(item.lote);
+            if (chave && !mapa.has(chave)) mapa.set(chave, item);
+        });
+        return Array.from(mapa.values()).sort((a, b) => normalizarCodigoLote(a.lote).localeCompare(normalizarCodigoLote(b.lote), 'pt-BR'));
+    }
+
+    function renderSugestoesValidador(inputId, resultId, termo) {
+        const codigo = normalizarCodigoLote(termo);
+        const itens = coletarLotesParaValidador();
+        const exato = itens.find(item => normalizarCodigoLote(item.lote) === codigo);
+        if (exato) return montarDetalhesResultadoValidador(buscarCartelaNoSistema(exato.lote));
+
+        const sugestoes = itens.filter(item => normalizarCodigoLote(item.lote).includes(codigo)).slice(0, 8);
+        if (!sugestoes.length) {
+            return `
+                <div class="validador-result danger">
+                    <div class="validador-status">NÃO ENCONTRADA</div>
+                    <div class="validador-lote">${escaparHTML(termo)}</div>
+                    <p>Nenhum lote parecido foi localizado na base carregada. Confira a numeração digitada.</p>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="validador-sugestoes">
+                <div class="validador-sugestoes-title">Lotes encontrados enquanto você digita:</div>
+                ${sugestoes.map(item => `
+                    <button type="button" class="validador-sugestao-btn js-validador-sugestao" data-input-id="${escaparHTML(inputId)}" data-result-id="${escaparHTML(resultId)}" data-lote="${escaparHTML(item.lote)}">
+                        <span class="sugestao-lote">${escaparHTML(item.lote)}</span>
+                        <span class="sugestao-status ${item.classe}">${escaparHTML(item.status)}</span>
+                        ${item.pessoa ? `<small>${escaparHTML(item.pessoa.nome)} • ${escaparHTML(item.pessoa.turma || item.pessoa.tipo || '-')}</small>` : '<small>Lote sem educando vinculado</small>'}
+                    </button>
+                `).join('')}
+            </div>
+        `;
+    }
+
     window.validarCartelaPendente = function(inputId, resultId) {
         const input = document.getElementById(inputId);
         const result = document.getElementById(resultId);
@@ -401,23 +476,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const resultado = buscarCartelaNoSistema(codigo);
         if (!resultado) return;
-        const pessoa = resultado.pessoa;
-        const detalhesPessoa = pessoa ? `
-            <div class="validador-meta"><strong>Nome:</strong> ${escaparHTML(pessoa.nome)}</div>
-            <div class="validador-meta"><strong>Curso:</strong> ${escaparHTML(pessoa.curso || '-')}</div>
-            <div class="validador-meta"><strong>Turma/Categoria:</strong> ${escaparHTML(pessoa.turma || pessoa.tipo || '-')}</div>
-            <div class="validador-meta"><strong>Tipo:</strong> ${escaparHTML(pessoa.tipo || 'Educando')}</div>
-        ` : '';
-
-        result.innerHTML = `
-            <div class="validador-result ${resultado.tipoAlerta}">
-                <div class="validador-status">${escaparHTML(resultado.status)}</div>
-                <div class="validador-lote">${escaparHTML(resultado.lote)}</div>
-                <p>${escaparHTML(resultado.motivo)}</p>
-                ${detalhesPessoa}
-            </div>
-        `;
+        result.innerHTML = montarDetalhesResultadoValidador(resultado);
         window.registrarLog("Validador de Cartela", `Consultou ${resultado.lote}: ${resultado.status}`);
+    }
+
+    window.buscarValidadorCartelaAutomatico = function(inputId, resultId) {
+        const input = document.getElementById(inputId);
+        const result = document.getElementById(resultId);
+        if (!input || !result) return;
+
+        if (!window.__validadorTimers) window.__validadorTimers = {};
+        clearTimeout(window.__validadorTimers[inputId]);
+
+        window.__validadorTimers[inputId] = setTimeout(() => {
+            const termo = input.value.trim();
+            if (!termo) {
+                result.innerHTML = '';
+                return;
+            }
+            if (termo.length < 2) {
+                result.innerHTML = `<div class="validador-help">Digite pelo menos 2 caracteres para buscar automaticamente.</div>`;
+                return;
+            }
+            result.innerHTML = renderSugestoesValidador(inputId, resultId, termo);
+        }, 180);
+    }
+
+    window.preencherValidadorCartela = function(inputId, resultId, lote) {
+        const input = document.getElementById(inputId);
+        if (input) input.value = lote;
+        window.validarCartelaPendente(inputId, resultId);
     }
 
     window.limparValidadorCartela = function(inputId, resultId) {
@@ -714,6 +802,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const srchPendEdu = document.getElementById("buscaPendentesEducador");
     if(srchPendEdu) srchPendEdu.addEventListener('input', (e) => { window.pages.pendentesEdu.term = e.target.value; window.pages.pendentesEdu.current = 1; window.renderPendentesEducadorPaginado(); });
+
+    function ligarCliqueSeguro(id, callback) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('click', (event) => {
+            event.preventDefault();
+            callback(event);
+        });
+    }
+
+    ligarCliqueSeguro('btnExportarPendentesAdm', () => window.exportarPendentesAdmin());
+    ligarCliqueSeguro('btnExportarPendentesMinhaTurma', () => window.exportarPendentesEducador());
+    ligarCliqueSeguro('btnExportarPendentesEducador', () => window.exportarPendentesEducador());
+    ligarCliqueSeguro('btnValidarCartelaAdm', () => window.validarCartelaPendente('inputValidadorCartelaAdm', 'resultadoValidadorCartelaAdm'));
+    ligarCliqueSeguro('btnValidarCartelaEducador', () => window.validarCartelaPendente('inputValidadorCartelaEducador', 'resultadoValidadorCartelaEducador'));
+
+    document.querySelectorAll('.js-validador-input').forEach(input => {
+        const resultId = input.getAttribute('data-result-id');
+        if (!resultId) return;
+        input.addEventListener('input', () => window.buscarValidadorCartelaAutomatico(input.id, resultId));
+    });
+
+    document.addEventListener('click', (event) => {
+        const botaoSugestao = event.target.closest('.js-validador-sugestao');
+        if (!botaoSugestao) return;
+        event.preventDefault();
+        window.preencherValidadorCartela(
+            botaoSugestao.getAttribute('data-input-id'),
+            botaoSugestao.getAttribute('data-result-id'),
+            botaoSugestao.getAttribute('data-lote')
+        );
+    });
 
     // ==========================================
     // SEÇÃO DO EDUCADOR
