@@ -174,7 +174,7 @@
                         </div>
                         <div class="table-container" style="overflow-x: auto; width: 100%;">
                             <table class="data-table estoque-lotes-table" style="width: 100%; min-width: 820px;">
-                                <thead><tr><th>Lote</th><th>Status</th><th>Origem</th><th>Detalhe</th><th class="text-center">Ação</th></tr></thead>
+                                <thead><tr><th>Lote</th><th>Status</th><th>Origem</th><th>Educador Responsável</th><th class="text-center">Ação</th></tr></thead>
                                 <tbody id="tabelaEstoqueLotes"></tbody>
                             </table>
                         </div>
@@ -509,28 +509,26 @@
     <div class="modal-overlay" id="modalConfirmarConferenciaVD">
         <div class="modal-box modal-caixa-vd-confirmacao">
             <div class="modal-header modal-header-clean">
-                <h2>Conferir Caixa Venda Direta</h2>
+                <div>
+                    <h2>Conferir Caixa Venda Direta</h2>
+                    <p class="modal-subtitle">Validação final antes de juntar ao caixa oficial</p>
+                </div>
                 <button class="close-modal-btn" onclick="fecharModal('modalConfirmarConferenciaVD')"><span class="material-symbols-outlined">close</span></button>
             </div>
             <div class="modal-body">
-                <div class="acao-lote-hero caixa-vd-hero">
-                    <div class="acao-lote-icon caixa-vd-icon">
+                <div class="caixa-vd-confirm-hero">
+                    <div class="caixa-vd-confirm-icon">
                         <span class="material-symbols-outlined">point_of_sale</span>
                     </div>
-                    <div class="acao-lote-info">
-                        <span class="acao-lote-eyebrow">Conferência administrativa</span>
-                        <h3>Juntar ao Caixa Oficial</h3>
-                        <p>Confira os valores antes de consolidar no Livro Caixa.</p>
+                    <div class="caixa-vd-confirm-info">
+                        <span>Conferência administrativa</span>
+                        <h3>Juntar Venda Direta ao Caixa Oficial</h3>
+                        <p>Confira PIX, dinheiro e total antes de consolidar os lançamentos no Livro Caixa.</p>
                     </div>
                 </div>
 
-                <div class="acao-lote-note caixa-vd-note">
-                    <span class="material-symbols-outlined">info</span>
-                    <p>Após confirmar, todos os lançamentos pendentes da Venda Direta serão marcados como conferidos e entrarão no Caixa Oficial.</p>
-                </div>
-
-                <div class="caixa-vd-resumo-grid">
-                    <div class="caixa-vd-resumo-card">
+                <div class="caixa-vd-resumo-grid caixa-vd-resumo-modal">
+                    <div class="caixa-vd-resumo-card pix">
                         <span>PIX a conferir</span>
                         <strong id="modalVDPix">R$ 0,00</strong>
                     </div>
@@ -548,12 +546,17 @@
                     </div>
                 </div>
 
-                <div class="modal-actions-grid">
+                <div class="caixa-vd-confirm-alert">
+                    <span class="material-symbols-outlined">info</span>
+                    <p>Após confirmar, todos os lançamentos pendentes da Venda Direta serão marcados como <strong>Conferidos</strong> e entrarão no <strong>Caixa Oficial</strong>.</p>
+                </div>
+
+                <div class="modal-actions-grid caixa-vd-confirm-actions">
                     <button class="btn-modal-secondary" type="button" onclick="fecharModal('modalConfirmarConferenciaVD')">
                         <span class="material-symbols-outlined">close</span> Cancelar
                     </button>
                     <button class="btn-primary" id="btnExecutarConferenciaVD" type="button" onclick="executarConferenciaCaixaVendaDireta()">
-                        <span class="material-symbols-outlined">verified</span> Confirmar conferência
+                        <span class="material-symbols-outlined">verified</span> Confirmar e juntar ao caixa
                     </button>
                 </div>
             </div>
@@ -609,6 +612,6 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=20260625-9"></script>
+    <script src="js/app.js?v=20260625-10"></script>
 </body>
 </html>

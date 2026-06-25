@@ -328,7 +328,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const chave = normalizarCodigoLote(lote);
                 if (!chave || usados.has(chave)) return;
                 if (!mapa.has(chave)) {
-                    mapa.set(chave, { lote, origem: 'Atribuído à Venda Direta', detalhe: pessoa.nome || 'Vendedor direto' });
+                    mapa.set(chave, { lote, origem: 'Atribuído à Venda Direta', responsavel: pessoa.nome || 'Vendedor direto', detalhe: pessoa.nome || 'Vendedor direto' });
                 }
             });
         });
@@ -339,7 +339,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const chave = normalizarCodigoLote(lote);
                 if (!chave || usados.has(chave)) return;
                 if (!mapa.has(chave)) {
-                    mapa.set(chave, { lote, origem: 'Devolvido', detalhe: `${pessoa.nome} • ${pessoa.curso || '-'} • ${pessoa.turma || '-'}` });
+                    mapa.set(chave, { lote, origem: 'Devolvido', responsavel: pessoa.educadorResponsavel || 'Educador não informado', detalhe: `${pessoa.nome} • ${pessoa.curso || '-'} • ${pessoa.turma || '-'}` });
                 }
             });
         });
@@ -348,7 +348,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const chave = normalizarCodigoLote(item.codigo);
             if (!chave || usados.has(chave)) return;
             if (!mapa.has(chave)) {
-                mapa.set(chave, { lote: item.codigo, origem: item.educador ? 'Estoque com responsável' : 'Estoque/Sede', detalhe: item.educador || 'Disponível na base da sede' });
+                mapa.set(chave, { lote: item.codigo, origem: item.educador ? 'Estoque com responsável' : 'Estoque/Sede', responsavel: item.educador || 'Sede', detalhe: item.educador || 'Disponível na base da sede' });
             }
         });
 
@@ -358,7 +358,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function lotesDisponiveisVendaDiretaFiltrados(termo = '', limite = 50) {
         const busca = normalizarCodigoLote(termo);
         return coletarLotesDisponiveisVendaDireta()
-            .filter(item => !busca || normalizarCodigoLote(item.lote).includes(busca) || normalizarCodigoLote(item.origem).includes(busca) || normalizarCodigoLote(item.detalhe).includes(busca))
+            .filter(item => !busca || normalizarCodigoLote(item.lote).includes(busca) || normalizarCodigoLote(item.origem).includes(busca) || normalizarCodigoLote(item.responsavel || '').includes(busca) || normalizarCodigoLote(item.detalhe || '').includes(busca))
             .slice(0, limite);
     }
 
@@ -372,7 +372,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <button type="button" class="lote-consulta-card" ${acao}>
                     <strong>${escaparHTML(item.lote)}</strong>
                     <span>${escaparHTML(item.origem)}</span>
-                    <small>${escaparHTML(item.detalhe)}</small>
+                    <small>Responsável: ${escaparHTML(item.responsavel || item.detalhe || '-')}</small>
                 </button>
             `;
         }).join('');
@@ -773,7 +773,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <button type="button" class="venda-direta-lote-btn" onclick="prepararVendaDireta('${escaparHTML(item.lote)}')">
                     <strong>${escaparHTML(item.lote)}</strong>
                     <span>${escaparHTML(item.origem)}</span>
-                    <small>${escaparHTML(item.detalhe)}</small>
+                    <small>Responsável: ${escaparHTML(item.responsavel || item.detalhe || '-')}</small>
                 </button>
             `).join('') || '<div class="validador-help">Nenhum lote disponível para venda direta no momento.</div>';
         }
@@ -794,7 +794,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <button type="button" class="validador-sugestao-btn" onclick="prepararVendaDireta('${escaparHTML(item.lote)}')">
                 <span class="sugestao-lote">${escaparHTML(item.lote)}</span>
                 <span class="sugestao-status success">DISPONÍVEL PARA VENDA DIRETA</span>
-                <small>${escaparHTML(item.origem)} • ${escaparHTML(item.detalhe)}</small>
+                <small>${escaparHTML(item.origem)} • Responsável: ${escaparHTML(item.responsavel || item.detalhe || '-')}</small>
             </button>
         `).join('') || '<div class="validador-result danger"><div class="validador-status">NÃO DISPONÍVEL</div><p>Este lote não está disponível para Venda Direta ou já foi vendido/pendente.</p></div>';
     }
@@ -839,7 +839,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <label class="checkbox-item-row venda-direta-checkbox-row">
                 <input type="checkbox" class="roxo-checkbox" value="${escaparHTML(item.lote)}">
                 <span style="font-weight: 700; color: var(--dim-grey);">${escaparHTML(item.lote)}</span>
-                <span style="margin-left:auto; font-size:0.78rem; color:var(--petal-pink); text-align:right;">${escaparHTML(item.origem)}<br><small style="color:#777;">${escaparHTML(item.detalhe)}</small></span>
+                <span style="margin-left:auto; font-size:0.78rem; color:var(--petal-pink); text-align:right;">${escaparHTML(item.origem)}<br><small style="color:#777;">Responsável: ${escaparHTML(item.responsavel || item.detalhe || '-')}</small></span>
             </label>
         `).join('') || '<div style="padding:15px; text-align:center; color:#a0a0a0;">Nenhum lote disponível para Venda Direta.</div>';
     }
@@ -869,7 +869,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 normalizarCodigoLote(item.lote).includes(busca) ||
                 normalizarCodigoLote(item.status).includes(busca) ||
                 normalizarCodigoLote(item.origem).includes(busca) ||
-                normalizarCodigoLote(item.detalhe).includes(busca)
+                normalizarCodigoLote(item.responsavel || '').includes(busca) || normalizarCodigoLote(item.detalhe || '').includes(busca)
             );
         }
 
@@ -890,7 +890,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td><span class="badge-lote estoque-lote-badge">${escaparHTML(item.lote)}</span></td>
                 <td><span class="estoque-status-pill ${escaparHTML(item.classe)}">${escaparHTML(item.status)}</span></td>
                 <td><strong>${escaparHTML(item.origem)}</strong></td>
-                <td>${escaparHTML(item.detalhe)}</td>
+                <td><strong style="color:var(--dim-grey);">${escaparHTML(item.responsavel || '-')}</strong></td>
                 <td class="td-center">
                     <button type="button" class="icon-action-btn active-thumb" title="Separar este lote para Venda Direta" onclick="abrirModal('modalAtribuirLoteEquipe'); selecionarLoteDisponivelVendaDireta('${escaparHTML(item.lote)}'); if(window.renderListaAtribuicaoVendaDireta) window.renderListaAtribuicaoVendaDireta();">
                         <span class="material-symbols-outlined">add_task</span>

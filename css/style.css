@@ -1451,3 +1451,123 @@ button:disabled,
         width: 100%;
     }
 }
+
+/* =========================================================
+   AJUSTES V10 — LOTES DISPONÍVEIS + MODAL CAIXA VD
+   ========================================================= */
+.modal-subtitle {
+    margin: 0.2rem 0 0;
+    color: #8a8a8a;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.modal-caixa-vd-confirmacao {
+    width: 92%;
+    max-width: 560px;
+    border-radius: 22px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.caixa-vd-confirm-hero {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(188, 104, 161, 0.12), rgba(255, 255, 255, 0.96));
+    border: 1px solid rgba(188, 104, 161, 0.22);
+    box-shadow: 0 12px 26px rgba(30, 30, 30, 0.055);
+    margin-bottom: 1rem;
+}
+
+.caixa-vd-confirm-icon {
+    width: 58px;
+    height: 58px;
+    min-width: 58px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--petal-pink);
+    color: #fff;
+    box-shadow: 0 10px 22px rgba(188, 104, 161, 0.25);
+}
+
+.caixa-vd-confirm-icon .material-symbols-outlined {
+    font-size: 2rem;
+}
+
+.caixa-vd-confirm-info span {
+    color: var(--burnt-peach);
+    font-size: 0.74rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.caixa-vd-confirm-info h3 {
+    margin: 0.2rem 0 0.25rem;
+    color: var(--obsidian);
+    font-size: 1.12rem;
+    line-height: 1.15;
+}
+
+.caixa-vd-confirm-info p {
+    margin: 0;
+    color: #5f5f5f;
+    font-size: 0.88rem;
+    line-height: 1.35;
+}
+
+.caixa-vd-resumo-modal {
+    margin-top: 0.2rem;
+}
+
+.caixa-vd-confirm-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    border-radius: 16px;
+    background: rgba(232, 126, 85, 0.09);
+    border: 1px solid rgba(232, 126, 85, 0.24);
+    margin-bottom: 1rem;
+}
+
+.caixa-vd-confirm-alert .material-symbols-outlined {
+    color: var(--burnt-peach);
+    font-size: 1.35rem;
+    margin-top: 0.05rem;
+}
+
+.caixa-vd-confirm-alert p {
+    margin: 0;
+    color: var(--obsidian);
+    font-size: 0.88rem;
+    line-height: 1.4;
+}
+
+.caixa-vd-confirm-actions {
+    margin-top: 0.4rem;
+}
+
+.estoque-lotes-table td:nth-child(4) strong {
+    color: var(--obsidian) !important;
+    font-size: 0.92rem;
+}
+
+@media (max-width: 640px) {
+    .caixa-vd-confirm-hero {
+        align-items: flex-start;
+    }
+    .caixa-vd-confirm-icon {
+        width: 50px;
+        height: 50px;
+        min-width: 50px;
+    }
+    .caixa-vd-confirm-actions {
+        grid-template-columns: 1fr;
+    }
+}
