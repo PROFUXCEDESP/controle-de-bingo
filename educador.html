@@ -54,6 +54,7 @@
                 <li class="nav-item active" id="navMinhaTurma" onclick="mudarAbaEducador('secMinhaTurma', 'navMinhaTurma')"><span class="material-symbols-outlined nav-icon">groups</span> <span class="nav-text">Minha Turma</span></li>
                 <li class="nav-item" id="navVendasGeral" onclick="mudarAbaEducador('secVendasGeral', 'navVendasGeral')"><span class="material-symbols-outlined nav-icon">bar_chart</span> <span class="nav-text">Vendas Geral</span></li>
                 <li class="nav-item" id="navValidadorEducador" onclick="mudarAbaEducador('secValidadorCartelaEducador', 'navValidadorEducador')"><span class="material-symbols-outlined nav-icon">qr_code_scanner</span> <span class="nav-text">Validador</span></li>
+                <li class="nav-item js-venda-direta-only" id="navVendaDireta" style="display:none;" onclick="mudarAbaEducador('secVendaDireta', 'navVendaDireta')"><span class="material-symbols-outlined nav-icon">point_of_sale</span> <span class="nav-text">Venda Direta</span></li>
                 <li class="nav-item" id="navPendentesEducador" onclick="mudarAbaEducador('secPendentesEducador', 'navPendentesEducador')"><span class="material-symbols-outlined nav-icon">pending_actions</span> <span class="nav-text">Pendentes</span></li>
                 <li class="nav-item" onclick="abrirModal('modalCadastrarEducando')"><span class="material-symbols-outlined nav-icon">person_add</span> <span class="nav-text">Cadastrar Educando</span></li>
                 <li class="nav-item" onclick="abrirModal('modalAtribuirLote')"><span class="material-symbols-outlined nav-icon">assignment_ind</span> <span class="nav-text">Atribuir Lote</span></li>
@@ -132,6 +133,32 @@
                         </div>
                         <div id="resultadoValidadorCartelaEducador" class="validator-result-area"></div>
                     </div>
+                </section>
+
+                <section id="secVendaDireta" class="js-venda-direta-only" style="display: none;">
+                    <div class="section-header-actions">
+                        <div>
+                            <h2 class="section-title" style="margin-bottom: 0; border: none;">Venda Direta</h2>
+                            <p class="section-helper-text">Valide aqui os lotes vendidos diretamente. O valor fica separado em PIX e dinheiro, aguardando conferência do admin para entrar no caixa oficial.</p>
+                        </div>
+                    </div>
+                    <div class="dashboard-grid">
+                        <div class="kpi-card"><div class="kpi-title">Lotes disponíveis</div><div class="kpi-value highlight-purple" id="kpiVendaDiretaDisponiveis">0</div></div>
+                        <div class="kpi-card"><div class="kpi-title">Minhas vendas diretas</div><div class="kpi-value highlight-purple" id="kpiVendaDiretaVendidos">0</div></div>
+                        <div class="kpi-card"><div class="kpi-title">Valor total vendido</div><div class="kpi-value highlight-purple" id="kpiVendaDiretaValor">R$ 0,00</div></div>
+                        <div class="kpi-card"><div class="kpi-title">PIX a conferir</div><div class="kpi-value highlight-purple" id="kpiVendaDiretaPix">R$ 0,00</div></div>
+                        <div class="kpi-card"><div class="kpi-title">Dinheiro a conferir</div><div class="kpi-value" style="color: var(--sunflower-gold);" id="kpiVendaDiretaDinheiro">R$ 0,00</div></div>
+                        <div class="kpi-card"><div class="kpi-title">Aguardando admin</div><div class="kpi-value" style="color: var(--dim-grey);" id="kpiVendaDiretaConferencia">0 lançamento(s)</div></div>
+                    </div>
+                    <div class="validator-card" style="margin-top: 1.5rem;">
+                        <div class="validator-form">
+                            <input type="text" id="inputBuscaVendaDireta" class="purple-input" placeholder="Digite o lote vendido: ex. LOTE-001" autocomplete="off">
+                            <button class="btn-primary" id="btnAbrirVendaDiretaLote" type="button"><span class="material-symbols-outlined">verified</span> Validar Venda Direta</button>
+                        </div>
+                        <div id="resultadoBuscaVendaDireta" class="validator-result-area"></div>
+                    </div>
+                    <h3 style="color: var(--dim-grey); margin: 1.5rem 0 0.75rem;">Lotes disponíveis para Venda Direta</h3>
+                    <div id="listaLotesVendaDireta" class="venda-direta-lotes-grid"></div>
                 </section>
 
                 <section id="secPendentesEducador" style="display: none;">
@@ -227,7 +254,7 @@
                 <button class="close-modal-btn" onclick="fecharModal('modalAcaoLote')"><span class="material-symbols-outlined">close</span></button>
             </div>
             <div class="modal-body">
-                <div style="text-align: center; margin-bottom: 1rem;"><h3 style="color: var(--petal-pink); font-size: 1.5rem; margin-bottom: 5px;" id="acaoLoteNome">LOTE-XX</h3><p style="color: var(--dim-grey); font-weight: bold;">Aluno: <span id="acaoLoteAluno">Nome</span></p></div>
+                <div style="text-align: center; margin-bottom: 1rem;"><h3 style="color: var(--petal-pink); font-size: 1.5rem; margin-bottom: 5px;" id="acaoLoteNome">LOTE-XX</h3><p style="color: var(--dim-grey); font-weight: bold;">Vendedor: <span id="acaoLoteAluno">Nome</span></p></div>
                 <input type="hidden" id="acaoLoteInput"><input type="hidden" id="acaoAlunoIdxInput">
                 <div class="form-group">
                     <label style="font-weight: bold; color: var(--dim-grey);">Forma de Pagamento (R$ 20,00)</label>
@@ -242,8 +269,8 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: 1rem;">
-                    <button class="btn-primary" style="flex: 1; background-color: var(--sunflower-gold);" onclick="confirmarDevolucaoLote()">Devolver Lote</button>
-                    <button class="btn-primary" style="flex: 1;" onclick="confirmarVendaLote()">Confirmar Venda</button>
+                    <button class="btn-primary" id="btnModalDevolverLote" style="flex: 1; background-color: var(--sunflower-gold);" onclick="confirmarDevolucaoLote()">Devolver Lote</button>
+                    <button class="btn-primary" id="btnModalConfirmarVendaLote" style="flex: 1;" onclick="confirmarVendaLote()">Confirmar Venda</button>
                 </div>
             </div>
         </div>
@@ -254,6 +281,6 @@
     <div class="modal-overlay" id="modalErro"><div class="modal-box" style="width: 90%; max-width: 400px; text-align: center;"><div class="modal-header"><h2>Ops! Algo deu errado</h2><button class="close-modal-btn" onclick="fecharModal('modalErro')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="padding-top: 1rem;"><span class="material-symbols-outlined" style="font-size: 56px; color: var(--sunflower-gold); margin-bottom: 10px;">error</span><p class="modal-desc" id="textoModalErro" style="font-size: 1.05rem; color: var(--dim-grey); margin-bottom: 1.5rem;"></p><button class="btn-primary" style="background-color: var(--petal-pink); width: 100%;" onclick="fecharModal('modalErro')">Tentar Novamente</button></div></div></div>
     <div class="modal-overlay" id="modalSucesso"><div class="modal-box" style="width: 90%; max-width: 400px;"><div class="modal-header"><h2>Sucesso!</h2><button class="close-modal-btn" onclick="fecharModal('modalSucesso')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="text-align: center;"><span class="material-symbols-outlined" style="font-size: 56px; color: var(--petal-pink); margin-bottom: 1rem;">check_circle</span><p class="modal-desc" id="textoModalSucesso" style="font-size: 1.1rem; color: var(--dim-grey);"></p><button class="btn-primary" onclick="fecharModal('modalSucesso')" style="width: 100%;">Entendido</button></div></div></div>
 
-    <script src="js/app.js?v=20260625-2"></script>
+    <script src="js/app.js?v=20260625-5"></script>
 </body>
 </html>

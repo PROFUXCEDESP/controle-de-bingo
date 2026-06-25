@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const CLOUDINARY_PRESET = 'bingo_2026';
     
     const userName = localStorage.getItem('usuarioLogado') || 'Administrador';
+    const nivelAcessoUsuario = localStorage.getItem('nivelAcesso') || '';
     
     window.fotoFileGlobal = null; 
     let cropperInstancia = null;
@@ -28,6 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
         pendentesEdu: { current: 1, term: "" },
         logs: { current: 1 },
         caixa: { current: 1 },
+        caixaVD: { current: 1, term: "" },
         rankProfAdm: { current: 1 },
         minhaTurma: { current: 1, term: "", turma: "Todas" },
         rankEdu: { current: 1, term: "" },
@@ -41,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.caixaGlobal = { pixReais: 0.00, dinReais: 0.00 };
     window.caixaGlobalBD = []; 
+    window.caixaVendaDiretaBD = [];
     window.todosEducandosBD = []; window.mockEducadoresBD = [];
     window.todosParceirosBD = []; window.lotesSedeBD = []; window.logsDoSistema = [];
     window.historicoLotesBD = [];
@@ -168,7 +171,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     lotesPendentes: e['Lotes_Pendentes'] ? String(e['Lotes_Pendentes']).split(',').map(s=>s.trim()).filter(Boolean) : [],
                     lotesVendidos: e['Lotes_Vendidos'] ? String(e['Lotes_Vendidos']).split(',').map(s=>s.trim()).filter(Boolean) : [],
                     lotesDevolvidos: e['Lotes_Devolvidos'] ? String(e['Lotes_Devolvidos']).split(',').map(s=>s.trim()).filter(Boolean) : [],
-                    cartelasEntregues: parseInt(e['Cartelas_Entregue']) || 0
+                    cartelasEntregues: parseInt(e['Cartelas_Entregue']) || 0,
+                    tipoOperacao: (normalizarCodigoLote(e['Turma']) === 'EQUIPE' || normalizarCodigoLote(e['Turma']) === 'VENDA DIRETA' || normalizarCodigoLote(e['Curso']) === 'VENDA DIRETA') ? 'Venda Direta' : 'Educando'
                 }));
 
                 window.todosParceirosBD = (data.parceiros || []).map(p => ({
@@ -188,11 +192,12 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
                     });
                     let retiradosSede = window.lotesSedeBD.filter(l => textoIgual(l.educador, e['Nome'])).length;
-                    return { nome: e['Nome'], curso: e['Curso Responsavel'], lotesRetiradosSede: retiradosSede, lotesVendidos: vendidos, lotesPendentes: pendentes };
+                    return { nome: e['Nome'], curso: e['Curso Responsavel'], nivelAcesso: e['Nivel_Acesso'] || e['Nível_Acesso'] || '', lotesRetiradosSede: retiradosSede, lotesVendidos: vendidos, lotesPendentes: pendentes };
                 });
 
                 window.caixaGlobal = { pixReais: 0, dinReais: 0 };
-                window.caixaGlobalBD = data.caixaGlobal || []; 
+                window.caixaGlobalBD = data.caixaGlobal || [];
+                window.caixaVendaDiretaBD = data.caixaVendaDireta || [];
                 if (data.caixaGlobal) {
                     data.caixaGlobal.forEach(transacao => {
                         let valor = parseFloat(transacao['Valor']) || parseFloat(transacao['Valor_Total']) || parseFloat(transacao['Valor Recebido']) || 0;
@@ -227,6 +232,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const loginForm = document.getElementById("loginForm");
     if(loginForm) {
+        const loginOptions = loginForm.querySelector('.custom-options');
+        const loginWrapper = loginForm.querySelector('.custom-select-wrapper');
+        if (loginOptions && loginWrapper) {
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'sincronizar_dados' }) })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success || !Array.isArray(data.educadores)) return;
+                loginOptions.innerHTML = data.educadores
+                    .filter(e => e['Nome'])
+                    .map(e => `<span class="custom-option" data-value="${escaparHTML(e['Nome'])}">${escaparHTML(e['Nome'])}</span>`)
+                    .join('') || loginOptions.innerHTML;
+                ativarEventosSelectCustomizado(loginWrapper);
+            })
+            .catch(() => console.warn('Não foi possível atualizar a lista de login. Mantendo lista local.'));
+        }
+
         loginForm.addEventListener("submit", (e) => {
             e.preventDefault(); 
             const educadorInput = document.getElementById('educadorSelect') || document.querySelector('input[type="hidden"]');
@@ -239,6 +260,7 @@ document.addEventListener("DOMContentLoaded", () => {
             .then(res => res.json()).then(data => {
                 if (data.success) { 
                     localStorage.setItem('usuarioLogado', educador);
+                    localStorage.setItem('nivelAcesso', data.nivelAcesso || '');
                     window.registrarLog("Login", "Acessou o sistema com sucesso.");
                     window.location.href = (data.nivelAcesso === "ADM") ? "admin.html" : "educador.html"; 
                 } else { btn.innerText = "Acessar Sistema"; btn.disabled = false; window.abrirModalErro(data.message); }
@@ -254,6 +276,63 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function normalizarCodigoLote(valor) {
         return String(valor || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+    }
+
+    function ehVendaDireta(pessoa) {
+        const turma = normalizarCodigoLote(pessoa?.turma || '');
+        const curso = normalizarCodigoLote(pessoa?.curso || '');
+        const tipo = normalizarCodigoLote(pessoa?.tipo || pessoa?.tipoOperacao || '');
+        return turma === 'EQUIPE' || turma === 'VENDA DIRETA' || curso === 'VENDA DIRETA' || tipo === 'EQUIPE' || tipo === 'VENDA DIRETA';
+    }
+
+    function tipoPessoaVisual(pessoa, fallback = 'Educando') {
+        if (!pessoa) return fallback;
+        if (ehVendaDireta(pessoa)) return 'Venda Direta';
+        if (pessoa.tipo === 'Parceiro' || pessoa.turma === 'Parceiro') return 'Parceiro';
+        return fallback;
+    }
+
+    function obterPerfilVendaDiretaAtual() {
+        return window.todosEducandosBD.find(p => textoIgual(p.nome, userName) && ehVendaDireta(p));
+    }
+
+    function coletarLotesUsadosGlobalmente() {
+        const usados = new Set();
+        (window.todosEducandosBD || []).forEach(p => {
+            (p.lotesPendentes || []).forEach(l => usados.add(normalizarCodigoLote(l)));
+            (p.lotesVendidos || []).forEach(l => usados.add(normalizarCodigoLote(l)));
+        });
+        (window.todosParceirosBD || []).forEach(p => {
+            (p.lotesPendentes || []).forEach(l => usados.add(normalizarCodigoLote(l)));
+            (p.lotesVendidos || []).forEach(l => usados.add(normalizarCodigoLote(l)));
+        });
+        return usados;
+    }
+
+    function coletarLotesDisponiveisVendaDireta() {
+        const usados = coletarLotesUsadosGlobalmente();
+        const mapa = new Map();
+
+        (window.todosEducandosBD || []).forEach(pessoa => {
+            if (ehVendaDireta(pessoa)) return;
+            (pessoa.lotesDevolvidos || []).forEach(lote => {
+                const chave = normalizarCodigoLote(lote);
+                if (!chave || usados.has(chave)) return;
+                if (!mapa.has(chave)) {
+                    mapa.set(chave, { lote, origem: 'Devolvido', detalhe: `${pessoa.nome} • ${pessoa.curso || '-'} • ${pessoa.turma || '-'}` });
+                }
+            });
+        });
+
+        (window.lotesSedeBD || []).forEach(item => {
+            const chave = normalizarCodigoLote(item.codigo);
+            if (!chave || usados.has(chave)) return;
+            if (!mapa.has(chave)) {
+                mapa.set(chave, { lote: item.codigo, origem: item.educador ? 'Estoque com responsável' : 'Estoque/Sede', detalhe: item.educador || 'Disponível na base da sede' });
+            }
+        });
+
+        return Array.from(mapa.values()).sort((a, b) => normalizarCodigoLote(a.lote).localeCompare(normalizarCodigoLote(b.lote), 'pt-BR'));
     }
 
     function escaparHTML(valor) {
@@ -281,6 +360,68 @@ document.addEventListener("DOMContentLoaded", () => {
         URL.revokeObjectURL(url);
     }
 
+
+    function valorTransacao(tx) {
+        return parseFloat(tx?.['Valor']) || parseFloat(tx?.['Valor_Total']) || parseFloat(tx?.['Valor Recebido']) || parseFloat(tx?.['Valor(R$)']) || 0;
+    }
+
+    function metodoTransacao(tx) {
+        return String(tx?.['Metodo_Pagamento'] || tx?.['Método de Pagamento'] || tx?.['Método'] || tx?.['Metodo'] || tx?.['Forma_Pagamento'] || tx?.['Forma de Pagamento'] || '').toUpperCase();
+    }
+
+    function statusConferenciaVD(tx) {
+        return String(tx?.['Status_Conferencia'] || tx?.['Status Conferencia'] || tx?.['Status'] || 'Pendente').trim().toLowerCase();
+    }
+
+    function isCaixaVendaDiretaPendente(tx) {
+        const st = statusConferenciaVD(tx);
+        return !st || st === 'pendente' || st === 'pendente_conferencia' || st === 'a conferir' || st === 'aguardando conferencia' || st === 'aguardando conferência';
+    }
+
+    function isCaixaVendaDiretaConferido(tx) {
+        const st = statusConferenciaVD(tx);
+        return st === 'conferido' || st === 'consolidado' || st === 'validado' || st === 'lançado no caixa oficial' || st === 'lancado no caixa oficial';
+    }
+
+    function idTransacao(tx) {
+        return tx?.['ID_Transacao'] || tx?.['ID Transação'] || tx?.['ID Transacao'] || tx?.['ID'] || tx?.['Id'] || '';
+    }
+
+    function vendedorTransacaoVD(tx) {
+        return tx?.['Vendedor'] || tx?.['Educando'] || tx?.['Aluno'] || tx?.['Nome'] || tx?.['Responsavel'] || '-';
+    }
+
+    function dataTransacao(tx) {
+        return tx?.['Data/Hora'] || tx?.['Data_Hora'] || tx?.['Data Hora'] || tx?.['Data'] || tx?.['Carimbo de data/hora'] || '-';
+    }
+
+    function resumirCaixaVendaDireta(filtroVendedor = null) {
+        const linhas = (window.caixaVendaDiretaBD || []).filter(tx => !filtroVendedor || textoIgual(vendedorTransacaoVD(tx), filtroVendedor));
+        const resumo = { pixPendente: 0, dinheiroPendente: 0, totalPendente: 0, pixConferido: 0, dinheiroConferido: 0, totalConferido: 0, qtdPendente: 0, qtdConferido: 0, linhas };
+        linhas.forEach(tx => {
+            const valor = valorTransacao(tx);
+            const metodo = metodoTransacao(tx);
+            const pendente = isCaixaVendaDiretaPendente(tx);
+            const conferido = isCaixaVendaDiretaConferido(tx);
+            if (pendente) {
+                resumo.qtdPendente += 1;
+                if (metodo.includes('PIX')) resumo.pixPendente += valor;
+                else resumo.dinheiroPendente += valor;
+                resumo.totalPendente += valor;
+            } else if (conferido) {
+                resumo.qtdConferido += 1;
+                if (metodo.includes('PIX')) resumo.pixConferido += valor;
+                else resumo.dinheiroConferido += valor;
+                resumo.totalConferido += valor;
+            }
+        });
+        return resumo;
+    }
+
+    function moedaBR(valor) {
+        return `R$ ${(Number(valor) || 0).toFixed(2).replace('.', ',')}`;
+    }
+
     function encontrarHistoricoPendente(nome, lote, tipo = 'Educando') {
         const loteNorm = normalizarCodigoLote(lote);
         const nomeNorm = String(nome || '').trim().toLowerCase();
@@ -294,7 +435,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function montarPendenciasLotes(escopo = 'admin') {
-        let base = window.todosEducandosBD.filter(pessoa => pessoa.turma !== 'Equipe' && pessoa.lotesPendentes.length > 0);
+        let base = window.todosEducandosBD.filter(pessoa => !ehVendaDireta(pessoa) && pessoa.lotesPendentes.length > 0);
         if (escopo === 'educador') base = base.filter(pessoa => textoIgual(pessoa.educadorResponsavel, userName));
 
         return base.flatMap(pessoa => pessoa.lotesPendentes.map(lote => {
@@ -370,11 +511,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const codigo = normalizarCodigoLote(codigoDigitado);
         if (!codigo) return null;
 
-        const pessoas = [
-            ...window.todosEducandosBD.map(p => ({ ...p, tipo: p.turma === 'Equipe' ? 'Equipe' : 'Educando' })),
+        const pessoasBase = [
+            ...window.todosEducandosBD.map(p => ({ ...p, tipo: tipoPessoaVisual(p) })),
             ...window.todosParceirosBD.map(p => ({ ...p, tipo: 'Parceiro' }))
         ];
 
+        const vendedoresDiretos = pessoasBase.filter(ehVendaDireta);
+        for (const pessoa of vendedoresDiretos) {
+            if ((pessoa.lotesVendidos || []).some(l => normalizarCodigoLote(l) === codigo)) {
+                return { status: 'VÁLIDO VENDA DIRETA', tipoAlerta: 'success', pessoa, lote: codigo, motivo: 'Venda direta confirmada no sistema. Esta cartela está válida para o bingo.' };
+            }
+        }
+
+        const pessoas = pessoasBase.filter(p => !ehVendaDireta(p));
         for (const pessoa of pessoas) {
             if ((pessoa.lotesPendentes || []).some(l => normalizarCodigoLote(l) === codigo)) {
                 return { status: 'VETADA', tipoAlerta: 'danger', pessoa, lote: codigo, motivo: 'A cartela/lote ainda está como PENDENTE. Não consta venda confirmada nem devolução no sistema.' };
@@ -383,7 +532,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return { status: 'VÁLIDA', tipoAlerta: 'success', pessoa, lote: codigo, motivo: 'Venda confirmada no sistema.' };
             }
             if ((pessoa.lotesDevolvidos || []).some(l => normalizarCodigoLote(l) === codigo)) {
-                return { status: 'NÃO VÁLIDA', tipoAlerta: 'warning', pessoa, lote: codigo, motivo: 'A cartela/lote foi devolvida e não deve ser considerada como venda ativa.' };
+                return { status: 'NÃO VÁLIDA', tipoAlerta: 'warning', pessoa, lote: codigo, motivo: 'A cartela/lote foi devolvida. Só ficará válida se um vendedor direto confirmar a venda.' };
             }
         }
 
@@ -393,35 +542,55 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function montarDetalhesResultadoValidador(resultado) {
-        const pessoa = resultado.pessoa;
-        const detalhesPessoa = pessoa ? `
-            <div class="validador-meta"><strong>Nome:</strong> ${escaparHTML(pessoa.nome)}</div>
-            <div class="validador-meta"><strong>Curso:</strong> ${escaparHTML(pessoa.curso || '-')}</div>
-            <div class="validador-meta"><strong>Turma/Categoria:</strong> ${escaparHTML(pessoa.turma || pessoa.tipo || '-')}</div>
-            <div class="validador-meta"><strong>Tipo:</strong> ${escaparHTML(pessoa.tipo || 'Educando')}</div>
-        ` : '';
+        const pessoa = resultado.pessoa || {};
+        const nome = pessoa.nome || (resultado.tipoAlerta === 'danger' ? 'Cartela não localizada' : 'Lote sem educando vinculado');
+        const curso = pessoa.curso || '-';
+        const turma = pessoa.turma || pessoa.tipo || '-';
+        const foto = pessoa.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=BC68A1&color=fff`;
+        const statusClasse = resultado.status.startsWith('VÁLID') ? 'valido' : (resultado.status === 'VETADA' || resultado.status.includes('PENDENTE') ? 'pendente' : 'invalido');
+        const statusTexto = resultado.status === 'VETADA' ? 'PENDENTE' : resultado.status;
+        const tipoPessoa = pessoa.tipo || tipoPessoaVisual(pessoa, pessoa.nome ? 'Educando' : 'Lote');
 
         return `
-            <div class="validador-result ${resultado.tipoAlerta}">
-                <div class="validador-status">${escaparHTML(resultado.status)}</div>
-                <div class="validador-lote">${escaparHTML(resultado.lote)}</div>
-                <p>${escaparHTML(resultado.motivo)}</p>
-                ${detalhesPessoa}
+            <div class="validador-card-horizontal ${resultado.tipoAlerta}">
+                <div class="validador-card-photo-wrap">
+                    <img src="${escaparHTML(foto)}" alt="Foto de ${escaparHTML(nome)}" class="validador-card-photo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=BC68A1&color=fff'">
+                </div>
+                <div class="validador-card-main">
+                    <div class="validador-card-topline">
+                        <span class="validador-card-lote">Lote ${escaparHTML(resultado.lote)}</span>
+                        <span class="validador-card-tipo">${escaparHTML(tipoPessoa)}</span>
+                    </div>
+                    <h3 class="validador-card-nome">${escaparHTML(nome)}</h3>
+                    <div class="validador-card-grid">
+                        <span><strong>Curso:</strong> ${escaparHTML(curso)}</span>
+                        <span><strong>Turma:</strong> ${escaparHTML(turma)}</span>
+                    </div>
+                    <p class="validador-card-motivo">${escaparHTML(resultado.motivo)}</p>
+                </div>
+                <div class="validador-card-status-box">
+                    <span class="validador-status-label ${statusClasse}">${escaparHTML(statusTexto)}</span>
+                    <small>Status do lote</small>
+                </div>
             </div>
         `;
     }
 
     function coletarLotesParaValidador() {
         const pessoas = [
-            ...window.todosEducandosBD.map(p => ({ ...p, tipo: p.turma === 'Equipe' ? 'Equipe' : 'Educando' })),
+            ...window.todosEducandosBD.map(p => ({ ...p, tipo: tipoPessoaVisual(p) })),
             ...window.todosParceirosBD.map(p => ({ ...p, tipo: 'Parceiro' }))
         ];
 
         const itens = [];
         pessoas.forEach(pessoa => {
+            if (ehVendaDireta(pessoa)) {
+                (pessoa.lotesVendidos || []).forEach(lote => itens.push({ lote, status: 'VÁLIDO VENDA DIRETA', classe: 'success', pessoa }));
+                return;
+            }
             (pessoa.lotesPendentes || []).forEach(lote => itens.push({ lote, status: 'PENDENTE / VETADA', classe: 'danger', pessoa }));
             (pessoa.lotesVendidos || []).forEach(lote => itens.push({ lote, status: 'VENDIDA / VÁLIDA', classe: 'success', pessoa }));
-            (pessoa.lotesDevolvidos || []).forEach(lote => itens.push({ lote, status: 'DEVOLVIDA / NÃO VÁLIDA', classe: 'warning', pessoa }));
+            (pessoa.lotesDevolvidos || []).forEach(lote => itens.push({ lote, status: 'DEVOLVIDA / VENDA DIRETA DISPONÍVEL', classe: 'warning', pessoa }));
         });
 
         (window.lotesSedeBD || []).forEach(item => {
@@ -431,7 +600,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const mapa = new Map();
         itens.forEach(item => {
             const chave = normalizarCodigoLote(item.lote);
-            if (chave && !mapa.has(chave)) mapa.set(chave, item);
+            if (!chave) return;
+            const atual = mapa.get(chave);
+            if (!atual || item.status.includes('VÁLID')) mapa.set(chave, item);
         });
         return Array.from(mapa.values()).sort((a, b) => normalizarCodigoLote(a.lote).localeCompare(normalizarCodigoLote(b.lote), 'pt-BR'));
     }
@@ -514,6 +685,94 @@ document.addEventListener("DOMContentLoaded", () => {
         if (input) input.value = '';
         if (result) result.innerHTML = '';
         if (input) input.focus();
+    }
+
+    function validarDisponibilidadeVendaDireta(lote) {
+        const codigo = normalizarCodigoLote(lote);
+        if (!codigo) return { ok: false, message: 'Digite o número do lote vendido.' };
+        const consulta = buscarCartelaNoSistema(codigo);
+        if (!consulta) return { ok: false, message: 'Não foi possível consultar este lote.' };
+        if (consulta.status === 'VETADA') return { ok: false, message: `Este lote está pendente com ${consulta.pessoa?.nome || 'um educando'} e não pode ser vendido pela Venda Direta.` };
+        if (consulta.status.startsWith('VÁLID')) return { ok: false, message: 'Este lote já está vendido/validado no sistema.' };
+        if (consulta.status === 'NÃO ENCONTRADA') return { ok: false, message: 'Lote não encontrado na base carregada.' };
+        return { ok: true, consulta };
+    }
+
+    window.renderVendaDiretaPainel = function() {
+        const perfil = obterPerfilVendaDiretaAtual();
+        const elementosVendaDireta = document.querySelectorAll('.js-venda-direta-only:not(section)');
+        elementosVendaDireta.forEach(el => { el.style.display = perfil ? '' : 'none'; });
+        if (!perfil) return;
+
+        const disponiveis = coletarLotesDisponiveisVendaDireta();
+        const vendidos = perfil.lotesVendidos || [];
+        const resumoVD = resumirCaixaVendaDireta(perfil.nome);
+        const kpiDisp = document.getElementById('kpiVendaDiretaDisponiveis');
+        const kpiVend = document.getElementById('kpiVendaDiretaVendidos');
+        const kpiValor = document.getElementById('kpiVendaDiretaValor');
+        const kpiPix = document.getElementById('kpiVendaDiretaPix');
+        const kpiDin = document.getElementById('kpiVendaDiretaDinheiro');
+        const kpiConferencia = document.getElementById('kpiVendaDiretaConferencia');
+        const lista = document.getElementById('listaLotesVendaDireta');
+        if (kpiDisp) kpiDisp.innerText = disponiveis.length;
+        if (kpiVend) kpiVend.innerText = vendidos.length;
+        if (kpiValor) kpiValor.innerText = moedaBR(resumoVD.totalPendente + resumoVD.totalConferido || vendidos.length * 20);
+        if (kpiPix) kpiPix.innerText = moedaBR(resumoVD.pixPendente);
+        if (kpiDin) kpiDin.innerText = moedaBR(resumoVD.dinheiroPendente);
+        if (kpiConferencia) kpiConferencia.innerText = `${resumoVD.qtdPendente} lançamento(s)`;
+
+        if (lista) {
+            lista.innerHTML = disponiveis.slice(0, 80).map(item => `
+                <button type="button" class="venda-direta-lote-btn" onclick="prepararVendaDireta('${escaparHTML(item.lote)}')">
+                    <strong>${escaparHTML(item.lote)}</strong>
+                    <span>${escaparHTML(item.origem)}</span>
+                    <small>${escaparHTML(item.detalhe)}</small>
+                </button>
+            `).join('') || '<div class="validador-help">Nenhum lote disponível para venda direta no momento.</div>';
+        }
+    }
+
+    window.buscarLotesVendaDireta = function() {
+        const input = document.getElementById('inputBuscaVendaDireta');
+        const result = document.getElementById('resultadoBuscaVendaDireta');
+        if (!input || !result) return;
+        const termo = normalizarCodigoLote(input.value);
+        if (!termo || termo.length < 2) {
+            result.innerHTML = '<div class="validador-help">Digite pelo menos 2 caracteres do lote para buscar.</div>';
+            return;
+        }
+        const itens = coletarLotesDisponiveisVendaDireta().filter(item => normalizarCodigoLote(item.lote).includes(termo)).slice(0, 10);
+        result.innerHTML = itens.map(item => `
+            <button type="button" class="validador-sugestao-btn" onclick="prepararVendaDireta('${escaparHTML(item.lote)}')">
+                <span class="sugestao-lote">${escaparHTML(item.lote)}</span>
+                <span class="sugestao-status success">DISPONÍVEL PARA VENDA DIRETA</span>
+                <small>${escaparHTML(item.origem)} • ${escaparHTML(item.detalhe)}</small>
+            </button>
+        `).join('') || '<div class="validador-result danger"><div class="validador-status">NÃO DISPONÍVEL</div><p>Este lote não está disponível para Venda Direta ou já foi vendido/pendente.</p></div>';
+    }
+
+    window.prepararVendaDireta = function(lote) {
+        const perfil = obterPerfilVendaDiretaAtual();
+        if (!perfil) return window.abrirModalErro('Seu usuário não está habilitado como vendedor direto. Peça para a diretoria cadastrar você em Cadastrar Vendedor Direto.');
+        const validacao = validarDisponibilidadeVendaDireta(lote);
+        if (!validacao.ok) return window.abrirModalErro(validacao.message);
+        const idx = window.todosEducandosBD.indexOf(perfil);
+        document.getElementById('acaoLoteNome').innerText = lote;
+        document.getElementById('acaoLoteAluno').innerText = perfil.nome;
+        document.getElementById('acaoLoteInput').value = lote;
+        document.getElementById('acaoAlunoIdxInput').value = idx;
+        const modal = document.getElementById('modalAcaoLote');
+        if (modal) modal.setAttribute('data-tipo', 'VendaDireta');
+        const btnDev = document.getElementById('btnModalDevolverLote');
+        const btnVenda = document.getElementById('btnModalConfirmarVendaLote');
+        if (btnDev) btnDev.style.display = 'none';
+        if (btnVenda) btnVenda.innerText = 'Validar Venda Direta';
+        const radioPix = document.querySelector('input[name="formaPagamentoLote"][value="PIX"]');
+        if(radioPix) radioPix.checked = true;
+        window.toggleMisto(false);
+        const pix = document.getElementById('valorPixMisto'); if (pix) pix.value = '';
+        const din = document.getElementById('valorDinMisto'); if (din) din.value = '';
+        abrirModal('modalAcaoLote');
     }
 
     window.iniciarCorteFoto = function(event) {
@@ -618,7 +877,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.renderRankingAlunosAdm = function() {
         const tabela = document.getElementById("tabelaRankingAlunosADM"); if(!tabela) return;
-        let filtrados = [...window.todosEducandosBD].filter(a => a.turma !== 'Equipe').sort((a, b) => b.lotesVendidos.length - a.lotesVendidos.length);
+        let filtrados = [...window.todosEducandosBD].filter(a => !ehVendaDireta(a)).sort((a, b) => b.lotesVendidos.length - a.lotesVendidos.length);
         filtrados = filtrados.filter(a => a.lotesVendidos.length > 0 || a.lotesPendentes.length > 0);
         if (window.pages.rankAdm.term) filtrados = filtrados.filter(a => a.nome.toLowerCase().includes(window.pages.rankAdm.term.toLowerCase()));
 
@@ -639,7 +898,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.renderRankingAlunosEdu = function() {
         const tabela = document.getElementById("tabelaRankingEducador"); if(!tabela) return;
-        let filtrados = [...window.todosEducandosBD].filter(a => a.turma !== 'Equipe').sort((a, b) => b.lotesVendidos.length - a.lotesVendidos.length);
+        let filtrados = [...window.todosEducandosBD].filter(a => !ehVendaDireta(a)).sort((a, b) => b.lotesVendidos.length - a.lotesVendidos.length);
         filtrados = filtrados.filter(a => a.lotesVendidos.length > 0 || a.lotesPendentes.length > 0);
         if (window.pages.rankEdu.term) filtrados = filtrados.filter(a => a.nome.toLowerCase().includes(window.pages.rankEdu.term.toLowerCase()));
 
@@ -661,21 +920,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.renderRankingEquipeAdm = function() {
         const tabela = document.getElementById("tabelaRankingEquipeADM"); if(!tabela) return;
-        let filtrados = window.todosEducandosBD.filter(a => a.turma === 'Equipe').sort((a, b) => b.lotesVendidos.length - a.lotesVendidos.length);
+        let filtrados = window.todosEducandosBD.filter(a => ehVendaDireta(a)).sort((a, b) => b.lotesVendidos.length - a.lotesVendidos.length);
         
         const startIdx = (window.pages.rankEquipe.current - 1) * 10;
         const paginated = filtrados.slice(startIdx, startIdx + 10);
 
         tabela.innerHTML = paginated.map((colab, index) => {
             const valorArrecadado = (colab.lotesVendidos.length * 20).toFixed(2).replace('.', ',');
-            return `<tr style="cursor: pointer;" onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(colab)}, 'Equipe')">
+            return `<tr style="cursor: pointer;" onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(colab)}, 'VendaDireta')">
                 <td class="td-center" style="font-weight: bold; color: var(--petal-pink);">${startIdx + index + 1}º</td>
                 <td><img src="${colab.foto}" class="table-avatar" style="border: 2px solid var(--sunflower-gold);"></td>
-                <td><strong>${colab.nome}</strong><br><small style="color:var(--sunflower-gold); font-weight:bold;">Colaborador</small></td>
+                <td><strong>${colab.nome}</strong><br><small style="color:var(--sunflower-gold); font-weight:bold;">Vendedor Direto</small></td>
                 <td class="td-center" style="font-weight: bold; font-size: 1.1rem;">${colab.lotesVendidos.length}</td>
                 <td class="td-center highlight-purple" style="font-weight: bold;">R$ ${valorArrecadado}</td>
             </tr>`;
-        }).join('') || '<tr><td colspan="5" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum colaborador registrado.</td></tr>';
+        }).join('') || '<tr><td colspan="5" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum vendedor direto registrado.</td></tr>';
         
         renderPaginationUI('pagRankingEquipe', 'rankEquipe', filtrados.length, 10, 'renderRankingEquipeAdm');
     }
@@ -704,7 +963,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const tabela = document.getElementById('tabelaGestaoLotes'); if(!tabela) return;
         
         let listaUnificada = [
-            ...window.todosEducandosBD.map(e => ({ ...e, tipo: e.turma === 'Equipe' ? 'Equipe' : 'Educando', bdIdx: window.todosEducandosBD.indexOf(e) })),
+            ...window.todosEducandosBD.map(e => ({ ...e, tipo: ehVendaDireta(e) ? 'Venda Direta' : 'Educando', bdIdx: window.todosEducandosBD.indexOf(e) })),
             ...window.todosParceirosBD.map(p => ({ ...p, tipo: 'Parceiro', bdIdx: window.todosParceirosBD.indexOf(p) }))
         ];
 
@@ -715,8 +974,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const paginated = filtrados.slice(startIdx, startIdx + 10);
 
         tabela.innerHTML = paginated.map((pessoa) => {
-            let corBadge = pessoa.tipo === 'Parceiro' ? '#4CAF50' : (pessoa.tipo === 'Equipe' ? 'var(--sunflower-gold)' : 'var(--petal-pink)');
-            let descCategoria = pessoa.tipo === 'Equipe' ? 'Venda Direta' : (pessoa.tipo === 'Parceiro' ? 'Parceiro' : `Educando (${pessoa.turma})`);
+            let corBadge = pessoa.tipo === 'Parceiro' ? '#4CAF50' : (pessoa.tipo === 'Venda Direta' ? 'var(--sunflower-gold)' : 'var(--petal-pink)');
+            let descCategoria = pessoa.tipo === 'Venda Direta' ? 'Venda Direta' : (pessoa.tipo === 'Parceiro' ? 'Parceiro' : `Educando (${pessoa.turma})`);
             return `<tr style="cursor: pointer;" onclick="abrirDetalhesAluno(${pessoa.bdIdx}, '${pessoa.tipo}')">
                 <td><img src="${pessoa.foto}" class="table-avatar" style="border: 2px solid ${corBadge};"></td>
                 <td><strong>${pessoa.nome}</strong><br><small style="color:${corBadge}; font-weight:bold;">${pessoa.tipo}</small></td>
@@ -743,6 +1002,64 @@ document.addEventListener("DOMContentLoaded", () => {
             return `<tr><td style="color:var(--dim-grey); font-size:0.85rem;">${dt}</td><td><strong>${resp}</strong><br><small style="color:#ccc;">${sessao}</small></td><td style="color:var(--petal-pink); font-weight:bold;">${acao}</td><td style="color:var(--dim-grey);">${det}</td></tr>`;
         }).join('') || `<tr><td colspan="4" class="text-center" style="padding: 2rem; color: #a0a0a0;">Nenhum log encontrado.</td></tr>`;
         renderPaginationUI('pagLogs', 'logs', filtrados.length, 10, 'renderLogsPaginado');
+    }
+
+
+    window.renderCaixaVendaDiretaAdminPaginado = function() {
+        const tabela = document.getElementById('tabelaCaixaVendaDireta');
+        if (!tabela) return;
+        let linhas = [...(window.caixaVendaDiretaBD || [])].reverse();
+        if (window.pages.caixaVD.term) {
+            const term = window.pages.caixaVD.term.toLowerCase();
+            linhas = linhas.filter(tx => `${idTransacao(tx)} ${tx['Lote'] || ''} ${vendedorTransacaoVD(tx)} ${tx['Metodo_Pagamento'] || ''} ${tx['Status_Conferencia'] || ''}`.toLowerCase().includes(term));
+        }
+        const resumo = resumirCaixaVendaDireta();
+        const setText = (id, valor) => { const el = document.getElementById(id); if (el) el.innerText = valor; };
+        setText('kpiVDPixPendente', moedaBR(resumo.pixPendente));
+        setText('kpiVDDinheiroPendente', moedaBR(resumo.dinheiroPendente));
+        setText('kpiVDTotalPendente', moedaBR(resumo.totalPendente));
+        setText('kpiVDTotalConferido', moedaBR(resumo.totalConferido));
+        const btnConferir = document.getElementById('btnConferirCaixaVendaDireta');
+        if (btnConferir) btnConferir.disabled = resumo.qtdPendente === 0;
+
+        const startIdx = (window.pages.caixaVD.current - 1) * 10;
+        const paginated = linhas.slice(startIdx, startIdx + 10);
+        tabela.innerHTML = paginated.map(tx => {
+            const pendente = isCaixaVendaDiretaPendente(tx);
+            const status = pendente ? 'A CONFERIR' : 'CONFERIDO';
+            const statusClass = pendente ? 'pendente' : 'valido';
+            const valor = valorTransacao(tx);
+            const metodo = tx['Metodo_Pagamento'] || tx['Método'] || tx['Metodo'] || '-';
+            return `<tr>
+                <td>${escaparHTML(dataTransacao(tx))}</td>
+                <td><span style="color:#a0a0a0; font-size:0.8rem;">${escaparHTML(idTransacao(tx) || '-')}</span></td>
+                <td><strong>${escaparHTML(tx['Lote'] || '-')}</strong></td>
+                <td>${escaparHTML(vendedorTransacaoVD(tx))}</td>
+                <td class="highlight-purple" style="font-weight:bold;">${moedaBR(valor)}</td>
+                <td>${escaparHTML(metodo)}</td>
+                <td><span class="vd-status-badge ${statusClass}">${status}</span></td>
+            </tr>`;
+        }).join('') || `<tr><td colspan="7" class="text-center" style="padding: 2rem; color:#a0a0a0;">Nenhuma venda direta registrada.</td></tr>`;
+        renderPaginationUI('pagCaixaVendaDireta', 'caixaVD', linhas.length, 10, 'renderCaixaVendaDiretaAdminPaginado');
+    }
+
+    window.conferirCaixaVendaDireta = function() {
+        const resumo = resumirCaixaVendaDireta();
+        if (resumo.qtdPendente === 0) return window.abrirModalErro('Não há lançamentos de venda direta pendentes para conferir.');
+        const confirmar = window.confirm(`Conferir ${resumo.qtdPendente} lançamento(s) da Venda Direta e juntar ${moedaBR(resumo.totalPendente)} ao Caixa Oficial?`);
+        if (!confirmar) return;
+        const btn = document.getElementById('btnConferirCaixaVendaDireta');
+        if (btn) { btn.disabled = true; btn.innerText = 'Conferindo...'; }
+        fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'conferir_caixa_venda_direta', responsavel: userName }) })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) throw new Error(data.message || 'Falha ao conferir caixa.');
+                window.abrirModalSucesso(data.message || 'Venda Direta conferida e juntada ao Caixa Oficial.');
+                window.registrarLog('Conferência Caixa Venda Direta', `Conferiu ${data.qtd || resumo.qtdPendente} lançamento(s) e juntou ${moedaBR(data.total || resumo.totalPendente)} ao caixa oficial.`);
+                window.carregarDadosDoBanco(true);
+            })
+            .catch(err => window.abrirModalErro(err.message || 'Erro ao conferir Venda Direta.'))
+            .finally(() => { if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined">verified</span> Conferir e juntar ao caixa oficial'; } });
     }
 
     window.renderLivroCaixaPaginado = function() {
@@ -803,6 +1120,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const srchPendEdu = document.getElementById("buscaPendentesEducador");
     if(srchPendEdu) srchPendEdu.addEventListener('input', (e) => { window.pages.pendentesEdu.term = e.target.value; window.pages.pendentesEdu.current = 1; window.renderPendentesEducadorPaginado(); });
 
+    const srchCaixaVD = document.getElementById("buscaCaixaVendaDireta");
+    if(srchCaixaVD) srchCaixaVD.addEventListener('input', (e) => { window.pages.caixaVD.term = e.target.value; window.pages.caixaVD.current = 1; window.renderCaixaVendaDiretaAdminPaginado(); });
+
     function ligarCliqueSeguro(id, callback) {
         const el = document.getElementById(id);
         if (!el) return;
@@ -817,6 +1137,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ligarCliqueSeguro('btnExportarPendentesEducador', () => window.exportarPendentesEducador());
     ligarCliqueSeguro('btnValidarCartelaAdm', () => window.validarCartelaPendente('inputValidadorCartelaAdm', 'resultadoValidadorCartelaAdm'));
     ligarCliqueSeguro('btnValidarCartelaEducador', () => window.validarCartelaPendente('inputValidadorCartelaEducador', 'resultadoValidadorCartelaEducador'));
+    ligarCliqueSeguro('btnConferirCaixaVendaDireta', () => window.conferirCaixaVendaDireta());
 
     document.querySelectorAll('.js-validador-input').forEach(input => {
         const resultId = input.getAttribute('data-result-id');
@@ -835,6 +1156,19 @@ document.addEventListener("DOMContentLoaded", () => {
         );
     });
 
+    const inputBuscaVendaDireta = document.getElementById('inputBuscaVendaDireta');
+    if (inputBuscaVendaDireta) {
+        inputBuscaVendaDireta.addEventListener('input', () => window.buscarLotesVendaDireta());
+        inputBuscaVendaDireta.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                window.prepararVendaDireta(inputBuscaVendaDireta.value);
+            }
+        });
+    }
+    const btnVendaDireta = document.getElementById('btnAbrirVendaDiretaLote');
+    if (btnVendaDireta) btnVendaDireta.addEventListener('click', () => window.prepararVendaDireta(document.getElementById('inputBuscaVendaDireta')?.value));
+
     // ==========================================
     // SEÇÃO DO EDUCADOR
     // ==========================================
@@ -850,6 +1184,12 @@ document.addEventListener("DOMContentLoaded", () => {
         window.atualizarDashboardEducador = function() {
             window.renderMinhaTurmaPaginado();
             window.renderPendentesEducadorPaginado();
+            window.renderVendaDiretaPainel();
+
+            if (obterPerfilVendaDiretaAtual() && !window.__vendaDiretaAbaInicializada) {
+                window.__vendaDiretaAbaInicializada = true;
+                setTimeout(() => window.mudarAbaEducador('secVendaDireta', 'navVendaDireta'), 0);
+            }
 
             let totalPendentesGeral = 0, totalVendidosGeral = 0;
             window.todosEducandosBD.forEach(a => { totalPendentesGeral += a.lotesPendentes.length; totalVendidosGeral += a.lotesVendidos.length; });
@@ -1032,12 +1372,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const kpiParceirosProjetado = document.getElementById('kpiParceirosProjetado');
 
             let totalPendentes = 0, totalVendidos = 0; let ativos = 0; let inativos = 0; 
-            let alunosNormais = window.todosEducandosBD.filter(a => a.turma !== 'Equipe');
+            let alunosNormais = window.todosEducandosBD.filter(a => !ehVendaDireta(a));
             let totalAlunos = alunosNormais.length;
 
             alunosNormais.forEach(a => { 
                 totalPendentes += a.lotesPendentes.length; totalVendidos += a.lotesVendidos.length; 
-                if(a.turma !== 'Equipe') {
+                if(!ehVendaDireta(a)) {
                     if(a.cadastroAtivo === 'Sim' || a.lotesVendidos.length > 0 || a.lotesPendentes.length > 0) ativos++; else inativos++;
                 }
             });
@@ -1050,7 +1390,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 let cat = tx['Categoria'] || 'Educando';
                 let m = String(tx['Metodo_Pagamento'] || tx['Método'] || tx['Metodo'] || tx['Forma_Pagamento'] || '').toUpperCase();
 
-                if(cat === 'Equipe') vEquipe += val;
+                if(cat === 'Equipe' || cat === 'Venda Direta' || cat === 'VendaDireta') vEquipe += val;
                 else if(cat === 'Parceiro') vParc += val;
                 else vEdu += val;
 
@@ -1103,6 +1443,7 @@ document.addEventListener("DOMContentLoaded", () => {
             window.renderPendentesAdminPaginado();
             window.renderLogsPaginado();
             window.renderLivroCaixaPaginado();
+            window.renderCaixaVendaDiretaAdminPaginado();
 
             const tabelaRankingEducadoresADM = document.getElementById('tabelaRankingEducadoresADM');
             if(tabelaRankingEducadoresADM) {
@@ -1190,7 +1531,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const wrapEquipeAttr = document.getElementById("wrapperEquipeAtribuir");
             if(selectEquipeAttr && wrapEquipeAttr) {
                 let optsEquipe = searchBox;
-                let equipeDB = window.todosEducandosBD.filter(a => a.turma === 'Equipe');
+                let equipeDB = window.todosEducandosBD.filter(a => ehVendaDireta(a));
                 if(equipeDB.length === 0) optsEquipe += '<span class="custom-option" data-value="">Nenhum colaborador cadastrado.</span>';
                 else equipeDB.forEach(c => { optsEquipe += `<span class="custom-option" data-value="${c.nome}">${c.nome}</span>`; });
                 selectEquipeAttr.innerHTML = optsEquipe;
@@ -1292,18 +1633,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     fetch(CLOUDINARY_URL, { method: 'POST', body: formData })
                     .then(r => r.json()).then(dataImg => {
                         if(dataImg.secure_url) { salvarColaboradorBanco(nome, dataImg.secure_url, btn); } 
-                        else { window.abrirModalErro("Falha na imagem"); btn.innerText = "Salvar Colaborador"; btn.disabled = false; }
-                    }).catch(() => { window.abrirModalErro("Erro de rede."); btn.innerText = "Salvar Colaborador"; btn.disabled = false; });
+                        else { window.abrirModalErro("Falha na imagem"); btn.innerText = "Salvar Vendedor Direto"; btn.disabled = false; }
+                    }).catch(() => { window.abrirModalErro("Erro de rede."); btn.innerText = "Salvar Vendedor Direto"; btn.disabled = false; });
                 } else { salvarColaboradorBanco(nome, "", btn); }
             });
         }
 
         function salvarColaboradorBanco(nome, fotoUrl, btn) {
-            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'cadastrar_colaborador_vendedor', nome: nome, cargo: 'Colaborador', fotoUrl: fotoUrl })
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'cadastrar_colaborador_vendedor', nome: nome, cargo: 'Venda Direta', fotoUrl: fotoUrl })
             }).then(res => res.json()).then(data => {
-                btn.innerText = "Salvar Colaborador"; btn.disabled = false;
+                btn.innerText = "Salvar Vendedor Direto"; btn.disabled = false;
                 if(data.success) {
-                    window.registrarLog("Cadastro Colaborador", `Cadastrou o colaborador de vendas diretas ${nome}`);
+                    window.registrarLog("Cadastro Venda Direta", `Cadastrou o vendedor direto ${nome}`);
                     fecharModal('modalCadastrarColaborador'); 
                     const form = document.getElementById("formCadastrarColaborador");
                     if(form) form.reset();
@@ -1327,13 +1668,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 const btn = formAtribuirLoteEquipe.querySelector("button[type='submit']");
                 btn.innerText = "Atribuindo..."; btn.disabled = true;
 
-                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'atribuir_lote', nomeAluno: nomeInput, lotes: lotesArray, tipoPessoa: 'Equipe', responsavel: userName }) })
+                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'atribuir_lote', nomeAluno: nomeInput, lotes: lotesArray, tipoPessoa: 'Venda Direta', responsavel: userName }) })
                 .then(res => res.json()).then(data => {
                     btn.innerText = "Confirmar Atribuição"; btn.disabled = false;
                     if(data.success) {
-                        window.registrarLog("Atribuição Equipe", `Atribuiu lotes ${lotesArray.join(', ')} para o colaborador ${nomeInput}`);
+                        window.registrarLog("Atribuição Venda Direta", `Atribuiu lotes ${lotesArray.join(', ')} para o colaborador ${nomeInput}`);
                         fecharModal('modalAtribuirLoteEquipe'); formAtribuirLoteEquipe.reset(); 
-                        window.abrirModalSucesso("Lotes EQU atribuídos com sucesso!"); window.carregarDadosDoBanco(); 
+                        window.abrirModalSucesso("Lotes de venda direta atribuídos com sucesso!"); window.carregarDadosDoBanco(); 
                     } else window.abrirModalErro(data.message);
                 }).catch(() => { btn.disabled = false; window.abrirModalErro("Erro de rede."); });
             });
@@ -1362,7 +1703,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const elTurma = document.getElementById('detalheTurma'); 
         if(elTurma) {
             if (tipo === 'Parceiro') elTurma.innerText = `Comércio - Parceiro`;
-            else if (pessoa.turma === 'Equipe') elTurma.innerText = `Vendas Diretas - Equipe`;
+            else if (ehVendaDireta(pessoa)) elTurma.innerText = `Venda Direta`;
             else elTurma.innerText = `${pessoa.curso} - ${pessoa.turma}`;
         }
         
@@ -1425,6 +1766,10 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('acaoLoteInput').value = lote;
         document.getElementById('acaoAlunoIdxInput').value = idxAluno;
         document.getElementById('modalAcaoLote').setAttribute('data-tipo', tipo);
+        const btnDev = document.getElementById('btnModalDevolverLote');
+        const btnVenda = document.getElementById('btnModalConfirmarVendaLote');
+        if (btnDev) btnDev.style.display = '';
+        if (btnVenda) btnVenda.innerText = 'Confirmar Venda';
         
         const radioPix = document.querySelector('input[name="formaPagamentoLote"][value="PIX"]');
         if(radioPix) radioPix.checked = true;
@@ -1437,6 +1782,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const lote = document.getElementById('acaoLoteInput').value;
         const idx = document.getElementById('acaoAlunoIdxInput').value;
         const tipo = document.getElementById('modalAcaoLote').getAttribute('data-tipo') || 'Educando';
+        const isVendaDireta = tipo === 'VendaDireta' || tipo === 'Venda Direta';
         const pessoa = (tipo === 'Parceiro') ? window.todosParceirosBD[idx] : window.todosEducandosBD[idx];
         const formaPagamento = document.querySelector('input[name="formaPagamentoLote"]:checked').value;
         let vPix = 0, vDin = 0;
@@ -1453,25 +1799,39 @@ document.addEventListener("DOMContentLoaded", () => {
             fecharModal('modalAcaoLote');
             return window.abrirModalErro("Você já faturou este lote. Aguarde a sincronização.");
         }
+
+        if (isVendaDireta) {
+            const validacao = validarDisponibilidadeVendaDireta(lote);
+            if (!validacao.ok) return window.abrirModalErro(validacao.message);
+        }
+
         window.lotesValidadosNestaSessao.add(lote); 
-        
-        // INJEÇÃO LOCAL NO LIVRO CAIXA EM TEMPO REAL
         const idTxAtual = "TX-" + new Date().getTime();
         const dataHoraAtual = new Date().toLocaleString('pt-BR');
-        if (vPix > 0) window.caixaGlobalBD.push({ 'Data_Hora': dataHoraAtual, 'ID_Transacao': idTxAtual, 'Lote': lote, 'Educando': pessoa.nome, 'Valor': vPix, 'Metodo_Pagamento': 'PIX', 'Responsavel': userName, 'Categoria': tipo });
-        if (vDin > 0) window.caixaGlobalBD.push({ 'Data_Hora': dataHoraAtual, 'ID_Transacao': idTxAtual, 'Lote': lote, 'Educando': pessoa.nome, 'Valor': vDin, 'Metodo_Pagamento': 'Dinheiro', 'Responsavel': userName, 'Categoria': tipo });
-
-        window.caixaGlobal.pixReais += vPix; window.caixaGlobal.dinReais += vDin;
-        pessoa.lotesPendentes = pessoa.lotesPendentes.filter(l => l !== lote);
-        pessoa.lotesVendidos.push(lote);
+        const categoria = isVendaDireta ? 'Venda Direta' : tipo;
+        if (isVendaDireta) {
+            if (vPix > 0) window.caixaVendaDiretaBD.push({ 'Data_Hora': dataHoraAtual, 'ID_Transacao': `${idTxAtual}-PIX`, 'Lote': lote, 'Vendedor': pessoa.nome, 'Valor': vPix, 'Metodo_Pagamento': 'PIX', 'Responsavel': userName, 'Status_Conferencia': 'Pendente' });
+            if (vDin > 0) window.caixaVendaDiretaBD.push({ 'Data_Hora': dataHoraAtual, 'ID_Transacao': `${idTxAtual}-DIN`, 'Lote': lote, 'Vendedor': pessoa.nome, 'Valor': vDin, 'Metodo_Pagamento': 'Dinheiro', 'Responsavel': userName, 'Status_Conferencia': 'Pendente' });
+        } else {
+            if (vPix > 0) window.caixaGlobalBD.push({ 'Data_Hora': dataHoraAtual, 'ID_Transacao': idTxAtual, 'Lote': lote, 'Educando': pessoa.nome, 'Valor': vPix, 'Metodo_Pagamento': 'PIX', 'Responsavel': userName, 'Categoria': categoria });
+            if (vDin > 0) window.caixaGlobalBD.push({ 'Data_Hora': dataHoraAtual, 'ID_Transacao': idTxAtual, 'Lote': lote, 'Educando': pessoa.nome, 'Valor': vDin, 'Metodo_Pagamento': 'Dinheiro', 'Responsavel': userName, 'Categoria': categoria });
+            window.caixaGlobal.pixReais += vPix; window.caixaGlobal.dinReais += vDin;
+        }
+        if (!isVendaDireta) pessoa.lotesPendentes = pessoa.lotesPendentes.filter(l => normalizarCodigoLote(l) !== normalizarCodigoLote(lote));
+        if (!pessoa.lotesVendidos.some(l => normalizarCodigoLote(l) === normalizarCodigoLote(lote))) pessoa.lotesVendidos.push(lote);
+        if (isVendaDireta) {
+            window.todosEducandosBD.forEach(p => {
+                if (!ehVendaDireta(p) && Array.isArray(p.lotesDevolvidos)) p.lotesDevolvidos = p.lotesDevolvidos.filter(l => normalizarCodigoLote(l) !== normalizarCodigoLote(lote));
+            });
+        }
         
-        fecharModal('modalAcaoLote'); window.abrirModalSucesso("Venda confirmada!"); 
-        window.registrarLog("Validação Venda", `Lote ${lote} validado para ${pessoa.nome} (${tipo}). Pagamento: R$ ${vPix+vDin} via ${formaPagamento}`);
+        fecharModal('modalAcaoLote'); window.abrirModalSucesso(isVendaDireta ? "Venda direta validada e enviada para conferência do admin!" : "Venda confirmada!"); 
+        window.registrarLog(isVendaDireta ? "Validação Venda Direta" : "Validação Venda", `Lote ${lote} validado para ${pessoa.nome} (${categoria}). Pagamento: R$ ${vPix+vDin} via ${formaPagamento}`);
         if(document.getElementById("adminPage")) window.atualizarDashboardsADM(); 
         if(document.getElementById("educadorPage")) window.atualizarDashboardEducador();
 
         fetch(SCRIPT_URL, {
-            method: 'POST', body: JSON.stringify({ action: 'transacao_lote', acaoLote: 'venda', lote: lote, nome: pessoa.nome, nomeAluno: pessoa.nome, tipoPessoa: tipo, vPix: vPix, vDin: vDin, responsavel: userName })
+            method: 'POST', body: JSON.stringify({ action: isVendaDireta ? 'venda_direta_lote' : 'transacao_lote', acaoLote: 'venda', lote: lote, nome: pessoa.nome, nomeAluno: pessoa.nome, tipoPessoa: categoria, vPix: vPix, vDin: vDin, responsavel: userName })
         }).catch(err => console.error("Erro", err));
     }
 

@@ -67,17 +67,16 @@
                 <li class="nav-item" id="navGestaoLotes" onclick="mudarAbaEducador('secGestaoLotes', 'navGestaoLotes')"><span class="material-symbols-outlined nav-icon">inventory_2</span> <span class="nav-text">Gestão de Lotes</span></li>
                 <li class="nav-item" id="navValidadorCartelaAdm" onclick="mudarAbaEducador('secValidadorCartelaAdm', 'navValidadorCartelaAdm')"><span class="material-symbols-outlined nav-icon">qr_code_scanner</span> <span class="nav-text">Validador</span></li>
                 <li class="nav-item" id="navPendentesLotes" onclick="mudarAbaEducador('secPendentesLotes', 'navPendentesLotes')"><span class="material-symbols-outlined nav-icon">pending_actions</span> <span class="nav-text">Pendentes</span></li>
+                <li class="nav-item" id="navCaixaVendaDireta" onclick="mudarAbaEducador('secCaixaVendaDireta', 'navCaixaVendaDireta')"><span class="material-symbols-outlined nav-icon">point_of_sale</span> <span class="nav-text">Caixa Venda Direta</span></li>
                 
-                <li class="nav-item" onclick="abrirModal('modalCadastrarColaborador')"><span class="material-symbols-outlined nav-icon">person_add</span> <span class="nav-text">Cadastrar Colaborador</span></li>
-                <li class="nav-item" onclick="abrirModal('modalAtribuirLoteEquipe')"><span class="material-symbols-outlined nav-icon">assignment_ind</span> <span class="nav-text">Lote para Equipe</span></li>
-                
+                <li class="nav-item" onclick="abrirModal('modalCadastrarColaborador')"><span class="material-symbols-outlined nav-icon">person_add</span> <span class="nav-text">Cadastrar Vendedor Direto</span></li>
                 <li class="nav-item" onclick="abrirModal('modalCadastrarParceiro')"><span class="material-symbols-outlined nav-icon">storefront</span> <span class="nav-text">Cadastrar Parceiro</span></li>
                 <li class="nav-item" onclick="abrirModal('modalAtribuirLoteParceiro')"><span class="material-symbols-outlined nav-icon">add_business</span> <span class="nav-text">Lote para Parceiro</span></li>
                 
                 <li class="nav-item" id="navParceiros" onclick="mudarAbaEducador('secParceiros', 'navParceiros')"><span class="material-symbols-outlined nav-icon">handshake</span> <span class="nav-text">Parceiros</span></li>
                 <li class="nav-item" id="navRankingAlunos" onclick="mudarAbaEducador('secRankingAlunos', 'navRankingAlunos')"><span class="material-symbols-outlined nav-icon">emoji_events</span> <span class="nav-text">Ranking Educandos</span></li>
                 <li class="nav-item" id="navRankingEducadores" onclick="mudarAbaEducador('secRankingEducadores', 'navRankingEducadores')"><span class="material-symbols-outlined nav-icon">school</span> <span class="nav-text">Ranking Educadores</span></li>
-                <li class="nav-item" id="navRankingEquipe" onclick="mudarAbaEducador('secRankingEquipe', 'navRankingEquipe')"><span class="material-symbols-outlined nav-icon">groups</span> <span class="nav-text">Ranking Equipe</span></li>
+                <li class="nav-item" id="navRankingEquipe" onclick="mudarAbaEducador('secRankingEquipe', 'navRankingEquipe')"><span class="material-symbols-outlined nav-icon">groups</span> <span class="nav-text">Ranking Venda Direta</span></li>
                 <li class="nav-item" id="navLivroCaixa" onclick="mudarAbaEducador('secLivroCaixa', 'navLivroCaixa')"><span class="material-symbols-outlined nav-icon">account_balance_wallet</span> <span class="nav-text">Livro Caixa</span></li>
                 <li class="nav-item" id="navLogs" onclick="mudarAbaEducador('secLogs', 'navLogs')"><span class="material-symbols-outlined nav-icon">history</span> <span class="nav-text">Auditoria / Logs</span></li>
             </ul>
@@ -106,7 +105,7 @@
                             <div class="kpi-value highlight-purple" id="kpiVendasEducandos" style="font-size: 1.4rem;">R$ 0,00</div>
                         </div>
                         <div class="kpi-card" style="padding: 15px; text-align: center;">
-                            <div class="kpi-title" style="font-size: 0.85rem; color: #777;">Vendas Diretas</div>
+                            <div class="kpi-title" style="font-size: 0.85rem; color: #777;">Vendas Diretas Oficiais</div>
                             <div class="kpi-value highlight-purple" id="kpiVendasEquipe" style="font-size: 1.4rem;">R$ 0,00</div>
                         </div>
                         <div class="kpi-card" style="padding: 15px; text-align: center;">
@@ -122,8 +121,9 @@
                     <!-- LINHA 2: ARRECADAÇÃO GLOBAL DESTACADA -->
                     <div class="dashboard-grid" style="margin-bottom: 1.5rem; grid-template-columns: 1fr;">
                         <div class="kpi-card" style="text-align: center; padding: 2rem;">
-                            <div class="kpi-title" style="font-size: 1.2rem; margin-bottom: 10px;">Arrecadação Global</div>
+                            <div class="kpi-title" style="font-size: 1.2rem; margin-bottom: 10px;">Arrecadação Global Oficial</div>
                             <div class="kpi-value highlight-purple" id="kpiVendasReaisGlobal" style="font-size: 2.8rem;">R$ 0,00</div>
+                            <p class="section-helper-text" style="margin: 0.5rem 0 0;">A Venda Direta só entra aqui depois da conferência do admin.</p>
                             <div style="margin-top: 15px; display: flex; justify-content: center; gap: 30px; font-weight: bold; font-size: 1.1rem;">
                                 <div style="color: var(--petal-pink);">PIX: <span id="kpiCaixaPix">R$ 0,00</span></div>
                                 <div style="color: #FF9800;">Dinheiro: <span id="kpiCaixaDinheiro">R$ 0,00</span></div>
@@ -187,6 +187,31 @@
                     <div id="pagPendentesADM"></div>
                 </section>
 
+
+                <section id="secCaixaVendaDireta" style="display: none;">
+                    <div class="section-header-actions">
+                        <div>
+                            <h2 class="section-title" style="margin-bottom: 0; border: none;">Conferência da Venda Direta</h2>
+                            <p class="section-helper-text">Caixa separado da Venda Direta. Confira PIX e dinheiro antes de juntar ao Livro Caixa Oficial.</p>
+                        </div>
+                        <button class="btn-primary" id="btnConferirCaixaVendaDireta" type="button"><span class="material-symbols-outlined">verified</span> Conferir e juntar ao caixa oficial</button>
+                    </div>
+                    <div class="dashboard-grid" style="margin-bottom: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
+                        <div class="kpi-card"><div class="kpi-title">PIX a conferir</div><div class="kpi-value highlight-purple" id="kpiVDPixPendente">R$ 0,00</div></div>
+                        <div class="kpi-card"><div class="kpi-title">Dinheiro a conferir</div><div class="kpi-value" style="color: var(--sunflower-gold);" id="kpiVDDinheiroPendente">R$ 0,00</div></div>
+                        <div class="kpi-card"><div class="kpi-title">Total a juntar</div><div class="kpi-value highlight-purple" id="kpiVDTotalPendente">R$ 0,00</div></div>
+                        <div class="kpi-card"><div class="kpi-title">Já conferido</div><div class="kpi-value" style="color: var(--dim-grey);" id="kpiVDTotalConferido">R$ 0,00</div></div>
+                    </div>
+                    <input type="text" id="buscaCaixaVendaDireta" class="purple-input" placeholder="Pesquisar por lote, vendedor, método ou status..." style="margin-bottom: 1rem;">
+                    <div class="table-container" style="overflow-x: auto; width: 100%;">
+                        <table class="data-table" style="width: 100%; min-width: 900px;">
+                            <thead><tr><th>Data/Hora</th><th>ID</th><th>Lote</th><th>Vendedor direto</th><th>Valor</th><th>Método</th><th>Status</th></tr></thead>
+                            <tbody id="tabelaCaixaVendaDireta"></tbody>
+                        </table>
+                    </div>
+                    <div id="pagCaixaVendaDireta"></div>
+                </section>
+
                 <!-- SEÇÃO DE PARCEIROS (RESTAURADA) -->
                 <section id="secParceiros" style="display: none;">
                     <h2 class="section-title">Gestão de Parceiros</h2>
@@ -230,10 +255,10 @@
                 </section>
 
                 <section id="secRankingEquipe" style="display: none;">
-                    <h2 class="section-title">Ranking da Equipe (Vendas Diretas)</h2>
+                    <h2 class="section-title">Ranking da Venda Direta</h2>
                     <div class="table-container">
                         <table class="data-table" style="width: 100%;">
-                            <thead><tr><th class="text-center">Pos.</th><th>Foto</th><th>Nome do Colaborador</th><th class="text-center">Lotes Consolidados</th><th class="text-center">Valor Arrecadado</th></tr></thead>
+                            <thead><tr><th class="text-center">Pos.</th><th>Foto</th><th>Nome do Vendedor Direto</th><th class="text-center">Lotes Consolidados</th><th class="text-center">Valor Arrecadado</th></tr></thead>
                             <tbody id="tabelaRankingEquipeADM"></tbody>
                         </table>
                     </div>
@@ -241,10 +266,10 @@
                 </section>
                 
                 <section id="secLivroCaixa" style="display: none;">
-                    <h2 class="section-title">Livro Caixa Geral</h2>
+                    <h2 class="section-title">Livro Caixa Oficial</h2>
                     <div class="table-container">
                         <table class="data-table" style="width: 100%;">
-                            <thead><tr><th>Data / Hora</th><th>ID Transação</th><th>Lote</th><th>Educando</th><th>Valor Recebido</th><th>Método</th><th>Educador Responsável</th></tr></thead>
+                            <thead><tr><th>Data / Hora</th><th>ID Transação</th><th>Lote</th><th>Nome</th><th>Valor Recebido</th><th>Método</th><th>Educador Responsável</th></tr></thead>
                             <tbody id="tabelaLivroCaixa"></tbody>
                         </table>
                     </div>
@@ -308,7 +333,7 @@
         </div>
     </div>
     
-    <div class="modal-overlay" id="modalAcaoLote"><div class="modal-box" style="width: 90%; max-width: 400px;"><div class="modal-header"><h2>Validação de Lote</h2><button class="close-modal-btn" onclick="fecharModal('modalAcaoLote')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body"><div style="text-align: center; margin-bottom: 1rem;"><h3 style="color: var(--petal-pink); font-size: 1.5rem; margin-bottom: 5px;" id="acaoLoteNome">LOTE-XX</h3><p style="color: var(--dim-grey); font-weight: bold;">Vendedor: <span id="acaoLoteAluno">Nome</span></p></div><input type="hidden" id="acaoLoteInput"><input type="hidden" id="acaoAlunoIdxInput"><div class="form-group"><label style="font-weight: bold; color: var(--dim-grey);">Forma de Pagamento (R$ 20,00)</label><div style="display: flex; gap: 15px; margin-top: 10px; margin-bottom: 15px;"><label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="formaPagamentoLote" value="PIX" class="amarelo-radio" checked onchange="toggleMisto(false)"> PIX</label><label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="formaPagamentoLote" value="Dinheiro" class="amarelo-radio" onchange="toggleMisto(false)"> Dinheiro</label><label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="formaPagamentoLote" value="Misto" class="amarelo-radio" onchange="toggleMisto(true)"> Misto</label></div><div id="camposMisto" style="display: none; gap: 10px;"><div class="form-group" style="flex: 1;"><label>Valor PIX (R$)</label><input type="number" id="valorPixMisto" step="0.01" class="purple-input"></div><div class="form-group" style="flex: 1;"><label>Valor Dinheiro (R$)</label><input type="number" id="valorDinMisto" step="0.01" class="purple-input"></div></div></div><div style="display: flex; gap: 10px; margin-top: 1rem;"><button class="btn-primary" style="flex: 1; background-color: var(--sunflower-gold);" onclick="confirmarDevolucaoLote()">Devolver Lote</button><button class="btn-primary" style="flex: 1;" onclick="confirmarVendaLote()">Confirmar Venda</button></div></div></div></div>
+    <div class="modal-overlay" id="modalAcaoLote"><div class="modal-box" style="width: 90%; max-width: 400px;"><div class="modal-header"><h2>Validação de Lote</h2><button class="close-modal-btn" onclick="fecharModal('modalAcaoLote')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body"><div style="text-align: center; margin-bottom: 1rem;"><h3 style="color: var(--petal-pink); font-size: 1.5rem; margin-bottom: 5px;" id="acaoLoteNome">LOTE-XX</h3><p style="color: var(--dim-grey); font-weight: bold;">Vendedor: <span id="acaoLoteAluno">Nome</span></p></div><input type="hidden" id="acaoLoteInput"><input type="hidden" id="acaoAlunoIdxInput"><div class="form-group"><label style="font-weight: bold; color: var(--dim-grey);">Forma de Pagamento (R$ 20,00)</label><div style="display: flex; gap: 15px; margin-top: 10px; margin-bottom: 15px;"><label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="formaPagamentoLote" value="PIX" class="amarelo-radio" checked onchange="toggleMisto(false)"> PIX</label><label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="formaPagamentoLote" value="Dinheiro" class="amarelo-radio" onchange="toggleMisto(false)"> Dinheiro</label><label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="formaPagamentoLote" value="Misto" class="amarelo-radio" onchange="toggleMisto(true)"> Misto</label></div><div id="camposMisto" style="display: none; gap: 10px;"><div class="form-group" style="flex: 1;"><label>Valor PIX (R$)</label><input type="number" id="valorPixMisto" step="0.01" class="purple-input"></div><div class="form-group" style="flex: 1;"><label>Valor Dinheiro (R$)</label><input type="number" id="valorDinMisto" step="0.01" class="purple-input"></div></div></div><div style="display: flex; gap: 10px; margin-top: 1rem;"><button class="btn-primary" id="btnModalDevolverLote" style="flex: 1; background-color: var(--sunflower-gold);" onclick="confirmarDevolucaoLote()">Devolver Lote</button><button class="btn-primary" id="btnModalConfirmarVendaLote" style="flex: 1;" onclick="confirmarVendaLote()">Confirmar Venda</button></div></div></div></div>
     
     <div class="modal-overlay" id="modalCadastrarEducador"><div class="modal-box" style="width: 90%; max-width: 400px;"><div class="modal-header"><h2>Cadastrar Educador</h2><button class="close-modal-btn" onclick="fecharModal('modalCadastrarEducador')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body"><form id="formCadastrarEducador"><div class="form-group"><label style="font-weight: bold; color: var(--dim-grey); margin-bottom: 5px; display: block;">Nome do Educador</label><input type="text" id="novoNomeEducador" class="purple-input" required></div><div class="form-group"><label style="font-weight: bold; color: var(--dim-grey); margin-bottom: 5px; display: block;">Curso Responsável</label><input type="text" id="novoCursoEducador" class="purple-input" required placeholder="Ex: Auxiliar Administrativo"></div><button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Salvar Educador</button></form></div></div></div>
     <div class="modal-overlay" id="modalCorteFoto" style="z-index: 10000;"><div class="modal-box" style="width: 95%; max-width: 500px;"><div class="modal-header"><h2>Ajustar Foto</h2><button class="close-modal-btn" onclick="fecharModal('modalCorteFoto')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="padding: 0;"><div class="img-container"><img id="imagemParaCorte" src="" alt="Imagem para cortar"></div><div style="padding: 1rem;"><button class="btn-primary" id="btnConfirmarCorte" style="width: 100%; background-color: var(--petal-pink);">Cortar e Salvar Foto</button></div></div></div></div>
@@ -318,24 +343,24 @@
     <div class="modal-overlay" id="modalCadastrarColaborador">
         <div class="modal-box" style="width: 90%; max-width: 400px;">
             <div class="modal-header">
-                <h2>Cadastrar Colaborador</h2>
+                <h2>Cadastrar Vendedor Direto</h2>
                 <button class="close-modal-btn" onclick="fecharModal('modalCadastrarColaborador')"><span class="material-symbols-outlined">close</span></button>
             </div>
             <div class="modal-body">
                 <form id="formCadastrarColaborador">
                     <div class="form-group">
-                        <label style="font-weight: bold; color: var(--dim-grey); margin-bottom: 5px; display: block;">Nome do Colaborador</label>
+                        <label style="font-weight: bold; color: var(--dim-grey); margin-bottom: 5px; display: block;">Nome do Vendedor Direto</label>
                         <input type="text" id="nomeColaboradorInput" class="purple-input" required placeholder="Ex: Hildeson Fonseca">
                     </div>
                     <div class="form-group" style="text-align: center; margin-top: 15px;">
-                        <label style="font-weight: bold; color: var(--dim-grey); margin-bottom: 5px; display: block;">Foto do Colaborador</label>
+                        <label style="font-weight: bold; color: var(--dim-grey); margin-bottom: 5px; display: block;">Foto do Vendedor Direto</label>
                         <div style="position: relative; width: 100px; height: 100px; margin: 0 auto; background: #eee; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer;" onclick="document.getElementById('inputFotoColaborador').click()">
                             <span class="material-symbols-outlined" id="iconCameraColaborador" style="font-size: 32px; color: #aaa;">add_a_photo</span>
                             <img id="previewFotoColaborador" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: none;">
                         </div>
                         <input type="file" id="inputFotoColaborador" accept="image/*" capture="environment" style="display: none;" onchange="window.iniciarCorteColaborador(event)">
                     </div>
-                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 15px;">Salvar Colaborador</button>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 15px;">Salvar Vendedor Direto</button>
                 </form>
             </div>
         </div>
@@ -344,21 +369,21 @@
     <div class="modal-overlay" id="modalAtribuirLoteEquipe">
         <div class="modal-box" style="width: 90%; max-width: 450px;">
             <div class="modal-header">
-                <h2>Atribuir Lotes à Equipe</h2>
+                <h2>Atribuir Lotes à Venda Direta</h2>
                 <button class="close-modal-btn" onclick="fecharModal('modalAtribuirLoteEquipe')"><span class="material-symbols-outlined">close</span></button>
             </div>
             <div class="modal-body">
                 <form id="formAtribuirLoteEquipe">
                     <div class="form-group">
-                        <label style="color: var(--dim-grey); font-weight: bold; margin-bottom: 5px; display: block;">Lotes Disponíveis (Filtro EQU)</label>
+                        <label style="color: var(--dim-grey); font-weight: bold; margin-bottom: 5px; display: block;">Lotes disponíveis para Venda Direta</label>
                         <div class="checkbox-list-container" id="listaLotesEquipeCheckboxes" style="margin-bottom: 15px;"></div>
                     </div>
                     <div class="form-group">
-                        <label style="color: var(--dim-grey); font-weight: bold; margin-bottom: 5px; display: block;">Selecione o Colaborador</label>
+                        <label style="color: var(--dim-grey); font-weight: bold; margin-bottom: 5px; display: block;">Selecione o vendedor direto</label>
                         <div class="custom-select-wrapper" id="wrapperEquipeAtribuir">
                             <div class="custom-select">
                                 <div class="custom-select-trigger">
-                                    <span class="trigger-text" style="color: var(--dim-grey);">Escolha o colaborador...</span>
+                                    <span class="trigger-text" style="color: var(--dim-grey);">Escolha o vendedor direto...</span>
                                     <span class="material-symbols-outlined arrow-icon">expand_more</span>
                                 </div>
                                 <div class="custom-options" id="opcoesEquipeAtribuir"></div>
@@ -421,6 +446,6 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=20260625-2"></script>
+    <script src="js/app.js?v=20260625-5"></script>
 </body>
 </html>
