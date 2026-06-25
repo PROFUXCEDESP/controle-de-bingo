@@ -256,29 +256,68 @@
     </div>
     
     <div class="modal-overlay" id="modalAcaoLote">
-        <div class="modal-box" style="width: 90%; max-width: 400px;">
-            <div class="modal-header">
-                <h2>Validação de Lote</h2>
+        <div class="modal-box modal-venda-direta-confirmacao">
+            <div class="modal-header modal-header-clean">
+                <h2 id="acaoModalTitulo">Confirmar Venda</h2>
                 <button class="close-modal-btn" onclick="fecharModal('modalAcaoLote')"><span class="material-symbols-outlined">close</span></button>
             </div>
             <div class="modal-body">
-                <div style="text-align: center; margin-bottom: 1rem;"><h3 style="color: var(--petal-pink); font-size: 1.5rem; margin-bottom: 5px;" id="acaoLoteNome">LOTE-XX</h3><p style="color: var(--dim-grey); font-weight: bold;">Vendedor: <span id="acaoLoteAluno">Nome</span></p></div>
-                <input type="hidden" id="acaoLoteInput"><input type="hidden" id="acaoAlunoIdxInput">
-                <div class="form-group">
-                    <label style="font-weight: bold; color: var(--dim-grey);">Forma de Pagamento (R$ 20,00)</label>
-                    <div style="display: flex; gap: 15px; margin-top: 10px; margin-bottom: 15px;">
-                        <label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="formaPagamentoLote" value="PIX" class="amarelo-radio" checked onchange="toggleMisto(false)"> PIX</label>
-                        <label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="formaPagamentoLote" value="Dinheiro" class="amarelo-radio" onchange="toggleMisto(false)"> Dinheiro</label>
-                        <label style="display: flex; align-items: center; cursor: pointer; color: var(--dim-grey); font-weight: 600;"><input type="radio" name="formaPagamentoLote" value="Misto" class="amarelo-radio" onchange="toggleMisto(true)"> Misto</label>
+                <div class="acao-lote-hero">
+                    <div class="acao-lote-icon">
+                        <span class="material-symbols-outlined">confirmation_number</span>
                     </div>
-                    <div id="camposMisto" style="display: none; gap: 10px;">
-                        <div class="form-group" style="flex: 1;"><label>Valor PIX (R$)</label><input type="number" id="valorPixMisto" step="0.01" class="purple-input"></div>
-                        <div class="form-group" style="flex: 1;"><label>Valor Dinheiro (R$)</label><input type="number" id="valorDinMisto" step="0.01" class="purple-input"></div>
+                    <div class="acao-lote-info">
+                        <span class="acao-lote-eyebrow" id="acaoLoteContexto">Validação de lote</span>
+                        <h3 id="acaoLoteNome">LOTE-XX</h3>
+                        <p>Vendedor: <strong id="acaoLoteAluno">Nome</strong></p>
                     </div>
                 </div>
-                <div style="display: flex; gap: 10px; margin-top: 1rem;">
-                    <button class="btn-primary" id="btnModalDevolverLote" style="flex: 1; background-color: var(--sunflower-gold);" onclick="confirmarDevolucaoLote()">Devolver Lote</button>
-                    <button class="btn-primary" id="btnModalConfirmarVendaLote" style="flex: 1;" onclick="confirmarVendaLote()">Confirmar Venda</button>
+                <input type="hidden" id="acaoLoteInput">
+                <input type="hidden" id="acaoAlunoIdxInput">
+
+                <div class="acao-lote-note" id="acaoLoteNota">
+                    <span class="material-symbols-outlined">info</span>
+                    <p>Na Venda Direta, o valor fica separado em PIX e dinheiro até a conferência do admin.</p>
+                </div>
+
+                <div class="pagamento-card">
+                    <label class="modal-field-label">Forma de Pagamento <strong>R$ 20,00</strong></label>
+                    <div class="payment-options">
+                        <label class="payment-option">
+                            <input type="radio" name="formaPagamentoLote" value="PIX" class="amarelo-radio" checked onchange="toggleMisto(false)">
+                            <span class="material-symbols-outlined">pix</span>
+                            <strong>PIX</strong>
+                        </label>
+                        <label class="payment-option">
+                            <input type="radio" name="formaPagamentoLote" value="Dinheiro" class="amarelo-radio" onchange="toggleMisto(false)">
+                            <span class="material-symbols-outlined">payments</span>
+                            <strong>Dinheiro</strong>
+                        </label>
+                        <label class="payment-option">
+                            <input type="radio" name="formaPagamentoLote" value="Misto" class="amarelo-radio" onchange="toggleMisto(true)">
+                            <span class="material-symbols-outlined">account_balance_wallet</span>
+                            <strong>Misto</strong>
+                        </label>
+                    </div>
+                    <div id="camposMisto" class="misto-grid" style="display: none;">
+                        <div class="form-group">
+                            <label>Valor PIX (R$)</label>
+                            <input type="number" id="valorPixMisto" step="0.01" class="purple-input" placeholder="0,00">
+                        </div>
+                        <div class="form-group">
+                            <label>Valor Dinheiro (R$)</label>
+                            <input type="number" id="valorDinMisto" step="0.01" class="purple-input" placeholder="0,00">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-actions-grid">
+                    <button class="btn-modal-secondary" id="btnModalDevolverLote" onclick="confirmarDevolucaoLote()">
+                        <span class="material-symbols-outlined">undo</span> Devolver Lote
+                    </button>
+                    <button class="btn-primary" id="btnModalConfirmarVendaLote" onclick="confirmarVendaLote()">
+                        <span class="material-symbols-outlined">verified</span> Confirmar Venda
+                    </button>
                 </div>
             </div>
         </div>
@@ -289,6 +328,6 @@
     <div class="modal-overlay" id="modalErro"><div class="modal-box" style="width: 90%; max-width: 400px; text-align: center;"><div class="modal-header"><h2>Ops! Algo deu errado</h2><button class="close-modal-btn" onclick="fecharModal('modalErro')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="padding-top: 1rem;"><span class="material-symbols-outlined" style="font-size: 56px; color: var(--sunflower-gold); margin-bottom: 10px;">error</span><p class="modal-desc" id="textoModalErro" style="font-size: 1.05rem; color: var(--dim-grey); margin-bottom: 1.5rem;"></p><button class="btn-primary" style="background-color: var(--petal-pink); width: 100%;" onclick="fecharModal('modalErro')">Tentar Novamente</button></div></div></div>
     <div class="modal-overlay" id="modalSucesso"><div class="modal-box" style="width: 90%; max-width: 400px;"><div class="modal-header"><h2>Sucesso!</h2><button class="close-modal-btn" onclick="fecharModal('modalSucesso')"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body" style="text-align: center;"><span class="material-symbols-outlined" style="font-size: 56px; color: var(--petal-pink); margin-bottom: 1rem;">check_circle</span><p class="modal-desc" id="textoModalSucesso" style="font-size: 1.1rem; color: var(--dim-grey);"></p><button class="btn-primary" onclick="fecharModal('modalSucesso')" style="width: 100%;">Entendido</button></div></div></div>
 
-    <script src="js/app.js?v=20260625-7"></script>
+    <script src="js/app.js?v=20260625-8"></script>
 </body>
 </html>

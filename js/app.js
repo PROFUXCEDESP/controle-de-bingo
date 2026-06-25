@@ -30,6 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
         logs: { current: 1 },
         caixa: { current: 1 },
         caixaVD: { current: 1, term: "" },
+        estoqueLotes: { current: 1, term: "" },
         rankProfAdm: { current: 1 },
         minhaTurma: { current: 1, term: "", turma: "Todas" },
         rankEdu: { current: 1, term: "" },
@@ -843,6 +844,64 @@ document.addEventListener("DOMContentLoaded", () => {
         `).join('') || '<div style="padding:15px; text-align:center; color:#a0a0a0;">Nenhum lote disponível para Venda Direta.</div>';
     }
 
+
+    function coletarLotesEstoqueDetalhado() {
+        return coletarLotesDisponiveisVendaDireta().map(item => {
+            const origemNorm = normalizarCodigoLote(item.origem);
+            let status = 'Disponível';
+            let classe = 'sede';
+            if (origemNorm.includes('DEVOLVIDO')) { status = 'Devolvido disponível'; classe = 'devolvido'; }
+            else if (origemNorm.includes('VENDA DIRETA') || origemNorm.includes('ATRIBUIDO') || origemNorm.includes('ATRIBUÍDO')) { status = 'Separado Venda Direta'; classe = 'venda-direta'; }
+            else if (origemNorm.includes('RESPONSAVEL')) { status = 'Estoque com responsável'; classe = 'responsavel'; }
+            else { status = 'Estoque/Sede'; classe = 'sede'; }
+            return { ...item, status, classe };
+        });
+    }
+
+    window.renderEstoqueLotesAdminPaginado = function() {
+        const tabela = document.getElementById('tabelaEstoqueLotes');
+        if (!tabela) return;
+        let linhas = coletarLotesEstoqueDetalhado();
+        const term = String(window.pages.estoqueLotes?.term || '').trim();
+        const busca = normalizarCodigoLote(term);
+        if (busca) {
+            linhas = linhas.filter(item =>
+                normalizarCodigoLote(item.lote).includes(busca) ||
+                normalizarCodigoLote(item.status).includes(busca) ||
+                normalizarCodigoLote(item.origem).includes(busca) ||
+                normalizarCodigoLote(item.detalhe).includes(busca)
+            );
+        }
+
+        const todos = coletarLotesEstoqueDetalhado();
+        const total = document.getElementById('kpiEstoqueTotal');
+        const sede = document.getElementById('kpiEstoqueSede');
+        const devolvidos = document.getElementById('kpiEstoqueDevolvidos');
+        const separados = document.getElementById('kpiEstoqueSeparadosVD');
+        if (total) total.innerText = todos.length;
+        if (sede) sede.innerText = todos.filter(i => i.classe === 'sede' || i.classe === 'responsavel').length;
+        if (devolvidos) devolvidos.innerText = todos.filter(i => i.classe === 'devolvido').length;
+        if (separados) separados.innerText = todos.filter(i => i.classe === 'venda-direta').length;
+
+        const startIdx = (window.pages.estoqueLotes.current - 1) * 12;
+        const paginated = linhas.slice(startIdx, startIdx + 12);
+        tabela.innerHTML = paginated.map(item => `
+            <tr>
+                <td><span class="badge-lote estoque-lote-badge">${escaparHTML(item.lote)}</span></td>
+                <td><span class="estoque-status-pill ${escaparHTML(item.classe)}">${escaparHTML(item.status)}</span></td>
+                <td><strong>${escaparHTML(item.origem)}</strong></td>
+                <td>${escaparHTML(item.detalhe)}</td>
+                <td class="td-center">
+                    <button type="button" class="icon-action-btn active-thumb" title="Separar este lote para Venda Direta" onclick="abrirModal('modalAtribuirLoteEquipe'); selecionarLoteDisponivelVendaDireta('${escaparHTML(item.lote)}'); if(window.renderListaAtribuicaoVendaDireta) window.renderListaAtribuicaoVendaDireta();">
+                        <span class="material-symbols-outlined">add_task</span>
+                    </button>
+                </td>
+            </tr>
+        `).join('') || `<tr><td colspan="5" class="text-center" style="padding: 2rem; color:#a0a0a0;">Nenhum lote em estoque encontrado.</td></tr>`;
+
+        renderPaginationUI('pagEstoqueLotes', 'estoqueLotes', linhas.length, 12, 'renderEstoqueLotesAdminPaginado');
+    }
+
     function obterLotesDigitadosManual(inputId) {
         const el = document.getElementById(inputId);
         if (!el) return [];
@@ -857,6 +916,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const idx = window.todosEducandosBD.indexOf(perfil);
         document.getElementById('acaoLoteNome').innerText = lote;
         document.getElementById('acaoLoteAluno').innerText = perfil.nome;
+        const tituloModalAcao = document.getElementById('acaoModalTitulo');
+        const contextoModalAcao = document.getElementById('acaoLoteContexto');
+        const notaModalAcao = document.getElementById('acaoLoteNota');
+        if (tituloModalAcao) tituloModalAcao.innerText = 'Confirmar Venda Direta';
+        if (contextoModalAcao) contextoModalAcao.innerText = 'Venda Direta • caixa separado';
+        if (notaModalAcao) notaModalAcao.style.display = 'flex';
         document.getElementById('acaoLoteInput').value = lote;
         document.getElementById('acaoAlunoIdxInput').value = idx;
         const modal = document.getElementById('modalAcaoLote');
@@ -1212,6 +1277,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const srchLotes = document.getElementById("buscaGestaoLotes");
     if(srchLotes) srchLotes.addEventListener('input', (e) => { window.pages.gestaoLotes.term = e.target.value; window.pages.gestaoLotes.current = 1; window.renderGestaoLotesPaginado(); });
 
+    const srchEstoque = document.getElementById("buscaEstoqueLotes");
+    if(srchEstoque) srchEstoque.addEventListener('input', (e) => { window.pages.estoqueLotes.term = e.target.value; window.pages.estoqueLotes.current = 1; window.renderEstoqueLotesAdminPaginado(); });
+
     const srchPendAdm = document.getElementById("buscaPendentesAdm");
     if(srchPendAdm) srchPendAdm.addEventListener('input', (e) => { window.pages.pendentesAdm.term = e.target.value; window.pages.pendentesAdm.current = 1; window.renderPendentesAdminPaginado(); });
 
@@ -1544,6 +1612,7 @@ document.addEventListener("DOMContentLoaded", () => {
             window.renderRankingEquipeAdm();
             window.renderParceirosListaPaginado();
             window.renderGestaoLotesPaginado();
+            window.renderEstoqueLotesAdminPaginado();
             window.renderPendentesAdminPaginado();
             window.renderLogsPaginado();
             window.renderLivroCaixaPaginado();
@@ -1858,6 +1927,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const pessoa = (tipo === 'Parceiro') ? window.todosParceirosBD[idxAluno] : window.todosEducandosBD[idxAluno];
         document.getElementById('acaoLoteNome').innerText = lote;
         document.getElementById('acaoLoteAluno').innerText = pessoa.nome;
+        const tituloModalAcao = document.getElementById('acaoModalTitulo');
+        const contextoModalAcao = document.getElementById('acaoLoteContexto');
+        const notaModalAcao = document.getElementById('acaoLoteNota');
+        if (tituloModalAcao) tituloModalAcao.innerText = 'Validação de Lote';
+        if (contextoModalAcao) contextoModalAcao.innerText = tipo === 'Parceiro' ? 'Parceiro • venda oficial' : 'Educando • venda oficial';
+        if (notaModalAcao) notaModalAcao.style.display = 'none';
         document.getElementById('acaoLoteInput').value = lote;
         document.getElementById('acaoAlunoIdxInput').value = idxAluno;
         document.getElementById('modalAcaoLote').setAttribute('data-tipo', tipo);
