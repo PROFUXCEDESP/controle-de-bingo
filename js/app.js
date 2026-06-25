@@ -905,58 +905,50 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td class="td-center"><span class="estoque-count-pill roxo">${grupo.total}</span></td>
                 <td class="td-center"><span class="estoque-count-pill laranja">${grupo.devolvidos}</span></td>
                 <td class="td-center"><span class="estoque-count-pill cinza">${grupo.vendaDireta}</span></td>
-                <td class="td-center">
-                    <button type="button" class="btn-secondary-soft estoque-filter-mini-btn" onclick="filtrarEstoquePorEducador(${JSON.stringify(grupo.nome).replace(/"/g, '&quot;')})">
-                        <span class="material-symbols-outlined">filter_alt</span> Filtrar
-                    </button>
-                </td>
             </tr>
-        `).join('') || `<tr><td colspan="5" class="text-center" style="padding: 1.5rem; color:#a0a0a0;">Nenhum educador com lote em mãos no momento.</td></tr>`;
+        `).join('') || `<tr><td colspan="4" class="text-center" style="padding: 1.5rem; color:#a0a0a0;">Nenhum educador com lote em mãos para esta busca.</td></tr>`;
     }
 
     window.filtrarEstoquePorEducador = function(nome) {
-        const select = document.getElementById('filtroEducadorEstoqueLotes');
-        window.pages.estoqueLotes.educador = nome || '';
-        window.pages.estoqueLotes.current = 1;
-        if (select) select.value = nome || '';
-        window.renderEstoqueLotesAdminPaginado();
         const campoBusca = document.getElementById('buscaEstoqueLotes');
-        if (campoBusca) campoBusca.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        window.pages.estoqueLotes.term = nome || '';
+        window.pages.estoqueLotes.educador = '';
+        window.pages.estoqueLotes.current = 1;
+        if (campoBusca) {
+            campoBusca.value = nome || '';
+            campoBusca.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        window.renderEstoqueLotesAdminPaginado();
     }
 
     window.renderEstoqueLotesAdminPaginado = function() {
         const tabela = document.getElementById('tabelaEstoqueLotes');
         if (!tabela) return;
-        let linhas = coletarLotesEstoqueDetalhado();
-        preencherSelectEducadoresEstoqueLotes();
+        const todos = coletarLotesEstoqueDetalhado();
+        let linhas = [...todos];
         const term = String(window.pages.estoqueLotes?.term || '').trim();
-        const educadorFiltro = String(window.pages.estoqueLotes?.educador || '').trim();
         const busca = normalizarCodigoLote(term);
-        if (educadorFiltro) {
-            linhas = linhas.filter(item => textoIgual(item.responsavel || '', educadorFiltro));
-        }
         if (busca) {
             linhas = linhas.filter(item =>
                 normalizarCodigoLote(item.lote).includes(busca) ||
                 normalizarCodigoLote(item.status).includes(busca) ||
                 normalizarCodigoLote(item.origem).includes(busca) ||
-                normalizarCodigoLote(item.responsavel || '').includes(busca)
+                normalizarCodigoLote(item.responsavel || '').includes(busca) ||
+                normalizarCodigoLote(item.detalhe || '').includes(busca)
             );
         }
 
-        const todos = coletarLotesEstoqueDetalhado();
-        renderResumoEstoqueEducadores(todos);
+        renderResumoEstoqueEducadores(linhas);
         const total = document.getElementById('kpiEstoqueTotal');
         const sede = document.getElementById('kpiEstoqueSede');
         const separados = document.getElementById('kpiEstoqueSeparadosVD');
         const totalEducador = document.getElementById('kpiEstoqueTotalEducador');
         const tituloEducador = document.getElementById('kpiEstoqueTituloEducador');
-        const totalSelecionado = educadorFiltro ? todos.filter(i => textoIgual(i.responsavel || '', educadorFiltro)).length : todos.length;
         if (total) total.innerText = todos.length;
         if (sede) sede.innerText = todos.filter(i => i.classe === 'sede' || i.classe === 'responsavel').length;
         if (separados) separados.innerText = todos.filter(i => i.classe === 'venda-direta').length;
-        if (totalEducador) totalEducador.innerText = totalSelecionado;
-        if (tituloEducador) tituloEducador.innerText = educadorFiltro ? 'Total do educador' : 'Total filtrado';
+        if (totalEducador) totalEducador.innerText = linhas.length;
+        if (tituloEducador) tituloEducador.innerText = busca ? 'Total da busca' : 'Total filtrado';
 
         const startIdx = (window.pages.estoqueLotes.current - 1) * 12;
         const paginated = linhas.slice(startIdx, startIdx + 12);
@@ -1375,9 +1367,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if(srchLotes) srchLotes.addEventListener('input', (e) => { window.pages.gestaoLotes.term = e.target.value; window.pages.gestaoLotes.current = 1; window.renderGestaoLotesPaginado(); });
 
     const srchEstoque = document.getElementById("buscaEstoqueLotes");
-    if(srchEstoque) srchEstoque.addEventListener('input', (e) => { window.pages.estoqueLotes.term = e.target.value; window.pages.estoqueLotes.current = 1; window.renderEstoqueLotesAdminPaginado(); });
-    const filtroEducadorEstoque = document.getElementById("filtroEducadorEstoqueLotes");
-    if(filtroEducadorEstoque) filtroEducadorEstoque.addEventListener('change', (e) => { window.pages.estoqueLotes.educador = e.target.value; window.pages.estoqueLotes.current = 1; window.renderEstoqueLotesAdminPaginado(); });
+    if(srchEstoque) srchEstoque.addEventListener('input', (e) => { window.pages.estoqueLotes.term = e.target.value; window.pages.estoqueLotes.educador = ''; window.pages.estoqueLotes.current = 1; window.renderEstoqueLotesAdminPaginado(); });
 
     const srchPendAdm = document.getElementById("buscaPendentesAdm");
     if(srchPendAdm) srchPendAdm.addEventListener('input', (e) => { window.pages.pendentesAdm.term = e.target.value; window.pages.pendentesAdm.current = 1; window.renderPendentesAdminPaginado(); });

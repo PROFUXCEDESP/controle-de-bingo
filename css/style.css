@@ -1642,6 +1642,16 @@ button:disabled,
 }
 
 /* =========================================================
+   AJUSTES V13 — FILTRO DE LOTES SOMENTE PELA BUSCA
+   ========================================================= */
+.estoque-filter-panel {
+    grid-template-columns: 1fr;
+}
+.estoque-filter-panel .estoque-search-wrap {
+    width: 100%;
+}
+
+/* =========================================================
    AJUSTES V12 — RESUMO DE LOTES EM MÃOS POR EDUCADOR
    ========================================================= */
 .estoque-resumo-card {
@@ -1736,5 +1746,138 @@ button:disabled,
     }
     .estoque-resumo-total {
         width: 100%;
+    }
+}
+
+/* =========================================================
+   MODAL DE VALIDAÇÃO DE LOTE - PADRÃO CLEAN V14
+   ========================================================= */
+.modal-confirmacao-lote-clean {
+    width: 90%;
+    max-width: 450px;
+    border-radius: 18px;
+}
+
+.modal-confirmacao-lote-body {
+    text-align: center;
+    padding-top: 1.2rem;
+}
+
+.acao-lote-clean-title {
+    color: var(--petal-pink);
+    font-size: 1.55rem;
+    font-weight: 900;
+    margin: 0 0 0.45rem;
+}
+
+.acao-lote-clean-vendedor {
+    color: var(--dim-grey);
+    font-weight: 700;
+    margin: 0 0 1.05rem;
+    line-height: 1.35;
+}
+
+.acao-lote-clean-vendedor strong {
+    color: var(--dim-grey);
+    font-weight: 900;
+}
+
+.acao-lote-clean-nota {
+    display: none;
+    color: var(--burnt-peach);
+    background: rgba(232, 126, 85, 0.08);
+    border-radius: 12px;
+    padding: 0.7rem 0.85rem;
+    margin: -0.25rem 0 1rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.pagamento-clean-box {
+    text-align: left;
+    margin-bottom: 1rem;
+}
+
+.pagamento-clean-label {
+    display: block;
+    color: var(--dim-grey);
+    font-weight: 900;
+    margin-bottom: 0.75rem;
+}
+
+.pagamento-clean-options {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.pagamento-clean-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--dim-grey);
+    font-weight: 800;
+    cursor: pointer;
+    min-height: 34px;
+}
+
+.pagamento-clean-option input {
+    margin: 0;
+}
+
+.misto-grid-clean {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin: 0.65rem 0 1rem;
+    text-align: left;
+}
+
+.modal-actions-clean-lote {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-top: 1.35rem;
+}
+
+#modalAcaoLote[data-tipo="VendaDireta"] .modal-actions-clean-lote,
+#modalAcaoLote[data-tipo="Venda Direta"] .modal-actions-clean-lote {
+    grid-template-columns: 1fr;
+}
+
+.btn-clean-devolver {
+    border: none;
+    border-radius: 12px;
+    padding: 0.95rem 1rem;
+    background: var(--sunflower-gold);
+    color: var(--white);
+    font-size: 1rem;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.2s ease;
+}
+
+.btn-clean-devolver:hover,
+.btn-clean-confirmar:hover {
+    transform: translateY(-1px);
+    opacity: 0.95;
+}
+
+.btn-clean-confirmar {
+    border-radius: 12px;
+    padding: 0.95rem 1rem;
+    font-size: 1rem;
+    font-weight: 900;
+}
+
+@media (max-width: 560px) {
+    .pagamento-clean-options {
+        gap: 0.75rem;
+    }
+
+    .modal-actions-clean-lote,
+    .misto-grid-clean {
+        grid-template-columns: 1fr;
     }
 }
