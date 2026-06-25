@@ -70,6 +70,7 @@
                 <li class="nav-item" id="navCaixaVendaDireta" onclick="mudarAbaEducador('secCaixaVendaDireta', 'navCaixaVendaDireta')"><span class="material-symbols-outlined nav-icon">point_of_sale</span> <span class="nav-text">Caixa Venda Direta</span></li>
                 
                 <li class="nav-item" onclick="abrirModal('modalCadastrarColaborador')"><span class="material-symbols-outlined nav-icon">person_add</span> <span class="nav-text">Cadastrar Vendedor Direto</span></li>
+                <li class="nav-item" onclick="abrirModal('modalAtribuirLoteEquipe'); if(window.renderListaAtribuicaoVendaDireta) window.renderListaAtribuicaoVendaDireta();"><span class="material-symbols-outlined nav-icon">assignment_ind</span> <span class="nav-text">Lote Venda Direta</span></li>
                 <li class="nav-item" onclick="abrirModal('modalCadastrarParceiro')"><span class="material-symbols-outlined nav-icon">storefront</span> <span class="nav-text">Cadastrar Parceiro</span></li>
                 <li class="nav-item" onclick="abrirModal('modalAtribuirLoteParceiro')"><span class="material-symbols-outlined nav-icon">add_business</span> <span class="nav-text">Lote para Parceiro</span></li>
                 
@@ -367,16 +368,28 @@
     </div>
 
     <div class="modal-overlay" id="modalAtribuirLoteEquipe">
-        <div class="modal-box" style="width: 90%; max-width: 450px;">
+        <div class="modal-box" style="width: 90%; max-width: 520px;">
             <div class="modal-header">
                 <h2>Atribuir Lotes à Venda Direta</h2>
                 <button class="close-modal-btn" onclick="fecharModal('modalAtribuirLoteEquipe')"><span class="material-symbols-outlined">close</span></button>
             </div>
             <div class="modal-body">
                 <form id="formAtribuirLoteEquipe">
+                    <p class="section-helper-text" style="margin-top:0;">
+                        Os vendedores diretos têm acesso a todos os lotes disponíveis. Esta atribuição serve para controle de retirada/organização e não torna o lote válido até a venda ser confirmada.
+                    </p>
+                    <div class="form-group">
+                        <label style="color: var(--dim-grey); font-weight: bold; margin-bottom: 5px; display: block;">Consultar lotes disponíveis</label>
+                        <input type="text" id="inputConsultaLotesVendaDiretaAdmin" class="purple-input" placeholder="Digite parte do lote, origem ou responsável..." autocomplete="off">
+                        <div id="resumoLotesVendaDiretaAdmin" class="consulta-lotes-resumo" style="margin-top: 8px;"></div>
+                    </div>
                     <div class="form-group">
                         <label style="color: var(--dim-grey); font-weight: bold; margin-bottom: 5px; display: block;">Lotes disponíveis para Venda Direta</label>
                         <div class="checkbox-list-container" id="listaLotesEquipeCheckboxes" style="margin-bottom: 15px;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label style="color: var(--dim-grey); font-weight: bold; margin-bottom: 5px; display: block;">Atribuir por número do lote</label>
+                        <textarea id="inputLotesVendaDiretaManual" class="purple-input" rows="3" placeholder="Digite um ou mais lotes separados por vírgula ou linha. Ex: WEB-221, WEB-222"></textarea>
                     </div>
                     <div class="form-group">
                         <label style="color: var(--dim-grey); font-weight: bold; margin-bottom: 5px; display: block;">Selecione o vendedor direto</label>
@@ -391,7 +404,7 @@
                             <input type="hidden" id="equipeAtribuirSelect" required>
                         </div>
                     </div>
-                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Confirmar Atribuição</button>
+                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Confirmar Atribuição para Venda Direta</button>
                 </form>
             </div>
         </div>
@@ -446,6 +459,6 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=20260625-5"></script>
+    <script src="js/app.js?v=20260625-7"></script>
 </body>
 </html>

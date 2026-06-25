@@ -296,12 +296,18 @@ document.addEventListener("DOMContentLoaded", () => {
         return window.todosEducandosBD.find(p => textoIgual(p.nome, userName) && ehVendaDireta(p));
     }
 
-    function coletarLotesUsadosGlobalmente() {
+    function coletarLotesUsadosGlobalmente(opcoes = {}) {
         const usados = new Set();
+        const ignorarPendentesVendaDireta = !!opcoes.ignorarPendentesVendaDireta;
+
         (window.todosEducandosBD || []).forEach(p => {
-            (p.lotesPendentes || []).forEach(l => usados.add(normalizarCodigoLote(l)));
+            const vendaDireta = ehVendaDireta(p);
+            if (!vendaDireta || !ignorarPendentesVendaDireta) {
+                (p.lotesPendentes || []).forEach(l => usados.add(normalizarCodigoLote(l)));
+            }
             (p.lotesVendidos || []).forEach(l => usados.add(normalizarCodigoLote(l)));
         });
+
         (window.todosParceirosBD || []).forEach(p => {
             (p.lotesPendentes || []).forEach(l => usados.add(normalizarCodigoLote(l)));
             (p.lotesVendidos || []).forEach(l => usados.add(normalizarCodigoLote(l)));
@@ -310,8 +316,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function coletarLotesDisponiveisVendaDireta() {
-        const usados = coletarLotesUsadosGlobalmente();
+        // Venda Direta pode consultar todos os lotes livres, devolvidos e também os lotes
+        // já separados para Venda Direta. Esses lotes só ficam válidos após confirmação da venda.
+        const usados = coletarLotesUsadosGlobalmente({ ignorarPendentesVendaDireta: true });
         const mapa = new Map();
+
+        (window.todosEducandosBD || []).forEach(pessoa => {
+            if (!ehVendaDireta(pessoa)) return;
+            (pessoa.lotesPendentes || []).forEach(lote => {
+                const chave = normalizarCodigoLote(lote);
+                if (!chave || usados.has(chave)) return;
+                if (!mapa.has(chave)) {
+                    mapa.set(chave, { lote, origem: 'Atribuído à Venda Direta', detalhe: pessoa.nome || 'Vendedor direto' });
+                }
+            });
+        });
 
         (window.todosEducandosBD || []).forEach(pessoa => {
             if (ehVendaDireta(pessoa)) return;
@@ -333,6 +352,29 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         return Array.from(mapa.values()).sort((a, b) => normalizarCodigoLote(a.lote).localeCompare(normalizarCodigoLote(b.lote), 'pt-BR'));
+    }
+
+    function lotesDisponiveisVendaDiretaFiltrados(termo = '', limite = 50) {
+        const busca = normalizarCodigoLote(termo);
+        return coletarLotesDisponiveisVendaDireta()
+            .filter(item => !busca || normalizarCodigoLote(item.lote).includes(busca) || normalizarCodigoLote(item.origem).includes(busca) || normalizarCodigoLote(item.detalhe).includes(busca))
+            .slice(0, limite);
+    }
+
+    function renderLotesDisponiveisCompacto(itens, modo = 'consulta') {
+        if (!itens.length) return '<div class="validador-help">Nenhum lote disponível encontrado com esse filtro.</div>';
+        return itens.map(item => {
+            const acao = modo === 'venda'
+                ? `onclick="prepararVendaDireta('${escaparHTML(item.lote)}')"`
+                : `onclick="selecionarLoteDisponivelVendaDireta('${escaparHTML(item.lote)}')"`;
+            return `
+                <button type="button" class="lote-consulta-card" ${acao}>
+                    <strong>${escaparHTML(item.lote)}</strong>
+                    <span>${escaparHTML(item.origem)}</span>
+                    <small>${escaparHTML(item.detalhe)}</small>
+                </button>
+            `;
+        }).join('');
     }
 
     function escaparHTML(valor) {
@@ -523,6 +565,12 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
+        for (const pessoa of vendedoresDiretos) {
+            if ((pessoa.lotesPendentes || []).some(l => normalizarCodigoLote(l) === codigo)) {
+                return { status: 'AGUARDANDO VENDA DIRETA', tipoAlerta: 'warning', pessoa, lote: codigo, motivo: 'Este lote foi separado para Venda Direta, mas ainda não teve venda confirmada. Portanto ainda não é válido para o bingo.' };
+            }
+        }
+
         const pessoas = pessoasBase.filter(p => !ehVendaDireta(p));
         for (const pessoa of pessoas) {
             if ((pessoa.lotesPendentes || []).some(l => normalizarCodigoLote(l) === codigo)) {
@@ -547,30 +595,28 @@ document.addEventListener("DOMContentLoaded", () => {
         const curso = pessoa.curso || '-';
         const turma = pessoa.turma || pessoa.tipo || '-';
         const foto = pessoa.foto || `https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=BC68A1&color=fff`;
-        const statusClasse = resultado.status.startsWith('VÁLID') ? 'valido' : (resultado.status === 'VETADA' || resultado.status.includes('PENDENTE') ? 'pendente' : 'invalido');
+        const statusClasse = resultado.status.startsWith('VÁLID') ? 'valido' : (resultado.status === 'VETADA' || resultado.status.includes('PENDENTE') || resultado.status.includes('AGUARDANDO') ? 'pendente' : 'invalido');
         const statusTexto = resultado.status === 'VETADA' ? 'PENDENTE' : resultado.status;
         const tipoPessoa = pessoa.tipo || tipoPessoaVisual(pessoa, pessoa.nome ? 'Educando' : 'Lote');
 
         return `
-            <div class="validador-card-horizontal ${resultado.tipoAlerta}">
+            <div class="validador-card-horizontal ${resultado.tipoAlerta} status-${statusClasse}">
                 <div class="validador-card-photo-wrap">
                     <img src="${escaparHTML(foto)}" alt="Foto de ${escaparHTML(nome)}" class="validador-card-photo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(nome)}&background=BC68A1&color=fff'">
                 </div>
                 <div class="validador-card-main">
-                    <div class="validador-card-topline">
-                        <span class="validador-card-lote">Lote ${escaparHTML(resultado.lote)}</span>
-                        <span class="validador-card-tipo">${escaparHTML(tipoPessoa)}</span>
+                    <div class="validador-card-titleline">
+                        <span class="validador-card-lote">${escaparHTML(resultado.lote)}</span>
+                        <span class="validador-card-separator">—</span>
+                        <span class="validador-status-label ${statusClasse}">${escaparHTML(statusTexto)}</span>
                     </div>
-                    <h3 class="validador-card-nome">${escaparHTML(nome)}</h3>
-                    <div class="validador-card-grid">
-                        <span><strong>Curso:</strong> ${escaparHTML(curso)}</span>
-                        <span><strong>Turma:</strong> ${escaparHTML(turma)}</span>
+                    <div class="validador-card-info-list">
+                        <p><strong>Nome:</strong> ${escaparHTML(nome)}</p>
+                        <p><strong>Curso:</strong> ${escaparHTML(curso)}</p>
+                        <p><strong>Turma:</strong> ${escaparHTML(turma)}</p>
+                        <p><strong>Origem:</strong> ${escaparHTML(tipoPessoa)}</p>
                     </div>
                     <p class="validador-card-motivo">${escaparHTML(resultado.motivo)}</p>
-                </div>
-                <div class="validador-card-status-box">
-                    <span class="validador-status-label ${statusClasse}">${escaparHTML(statusTexto)}</span>
-                    <small>Status do lote</small>
                 </div>
             </div>
         `;
@@ -730,6 +776,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 </button>
             `).join('') || '<div class="validador-help">Nenhum lote disponível para venda direta no momento.</div>';
         }
+        window.consultarDisponiveisVendaDireta('inputConsultaDisponiveisVendaDireta', 'resultadoConsultaDisponiveisVendaDireta');
     }
 
     window.buscarLotesVendaDireta = function() {
@@ -738,10 +785,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!input || !result) return;
         const termo = normalizarCodigoLote(input.value);
         if (!termo || termo.length < 2) {
-            result.innerHTML = '<div class="validador-help">Digite pelo menos 2 caracteres do lote para buscar.</div>';
+            result.innerHTML = '<div class="validador-help">Digite pelo menos 2 caracteres do lote vendido para buscar.</div>';
             return;
         }
-        const itens = coletarLotesDisponiveisVendaDireta().filter(item => normalizarCodigoLote(item.lote).includes(termo)).slice(0, 10);
+        const itens = lotesDisponiveisVendaDiretaFiltrados(termo, 10);
         result.innerHTML = itens.map(item => `
             <button type="button" class="validador-sugestao-btn" onclick="prepararVendaDireta('${escaparHTML(item.lote)}')">
                 <span class="sugestao-lote">${escaparHTML(item.lote)}</span>
@@ -749,6 +796,57 @@ document.addEventListener("DOMContentLoaded", () => {
                 <small>${escaparHTML(item.origem)} • ${escaparHTML(item.detalhe)}</small>
             </button>
         `).join('') || '<div class="validador-result danger"><div class="validador-status">NÃO DISPONÍVEL</div><p>Este lote não está disponível para Venda Direta ou já foi vendido/pendente.</p></div>';
+    }
+
+    window.consultarDisponiveisVendaDireta = function(inputId = 'inputConsultaDisponiveisVendaDireta', resultId = 'resultadoConsultaDisponiveisVendaDireta') {
+        const input = document.getElementById(inputId);
+        const result = document.getElementById(resultId);
+        if (!result) return;
+        const termo = input ? input.value : '';
+        const itens = lotesDisponiveisVendaDiretaFiltrados(termo, 80);
+        result.innerHTML = `
+            <div class="consulta-lotes-resumo">
+                <strong>${itens.length}</strong> lote(s) disponível(is) ${termo ? 'para o filtro informado' : 'para Venda Direta'}
+            </div>
+            <div class="consulta-lotes-grid">${renderLotesDisponiveisCompacto(itens, 'venda')}</div>
+        `;
+    }
+
+    window.selecionarLoteDisponivelVendaDireta = function(lote) {
+        const manual = document.getElementById('inputLotesVendaDiretaManual');
+        if (manual) {
+            const atuais = manual.value.split(/[\n,;]+/).map(v => v.trim()).filter(Boolean);
+            if (!atuais.some(v => normalizarCodigoLote(v) === normalizarCodigoLote(lote))) atuais.push(lote);
+            manual.value = atuais.join(', ');
+        }
+        const buscaVenda = document.getElementById('inputBuscaVendaDireta');
+        if (buscaVenda && document.getElementById('educadorPage')) {
+            buscaVenda.value = lote;
+            window.buscarLotesVendaDireta();
+        }
+    }
+
+    window.renderListaAtribuicaoVendaDireta = function() {
+        const lista = document.getElementById('listaLotesEquipeCheckboxes');
+        const input = document.getElementById('inputConsultaLotesVendaDiretaAdmin');
+        const resumo = document.getElementById('resumoLotesVendaDiretaAdmin');
+        if (!lista) return;
+        const termo = input ? input.value : '';
+        const itens = lotesDisponiveisVendaDiretaFiltrados(termo, 250);
+        if (resumo) resumo.innerHTML = `<strong>${itens.length}</strong> lote(s) encontrado(s). Todos os vendedores diretos podem consultar os lotes disponíveis; esta atribuição é para controle/retirada operacional.`;
+        lista.innerHTML = itens.map(item => `
+            <label class="checkbox-item-row venda-direta-checkbox-row">
+                <input type="checkbox" class="roxo-checkbox" value="${escaparHTML(item.lote)}">
+                <span style="font-weight: 700; color: var(--dim-grey);">${escaparHTML(item.lote)}</span>
+                <span style="margin-left:auto; font-size:0.78rem; color:var(--petal-pink); text-align:right;">${escaparHTML(item.origem)}<br><small style="color:#777;">${escaparHTML(item.detalhe)}</small></span>
+            </label>
+        `).join('') || '<div style="padding:15px; text-align:center; color:#a0a0a0;">Nenhum lote disponível para Venda Direta.</div>';
+    }
+
+    function obterLotesDigitadosManual(inputId) {
+        const el = document.getElementById(inputId);
+        if (!el) return [];
+        return el.value.split(/[\n,;]+/).map(v => v.trim()).filter(Boolean);
     }
 
     window.prepararVendaDireta = function(lote) {
@@ -1169,6 +1267,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnVendaDireta = document.getElementById('btnAbrirVendaDiretaLote');
     if (btnVendaDireta) btnVendaDireta.addEventListener('click', () => window.prepararVendaDireta(document.getElementById('inputBuscaVendaDireta')?.value));
 
+    const inputConsultaVD = document.getElementById('inputConsultaDisponiveisVendaDireta');
+    if (inputConsultaVD) inputConsultaVD.addEventListener('input', () => window.consultarDisponiveisVendaDireta('inputConsultaDisponiveisVendaDireta', 'resultadoConsultaDisponiveisVendaDireta'));
+
+    const inputConsultaVDAdm = document.getElementById('inputConsultaLotesVendaDiretaAdmin');
+    if (inputConsultaVDAdm) inputConsultaVDAdm.addEventListener('input', () => window.renderListaAtribuicaoVendaDireta());
+
     // ==========================================
     // SEÇÃO DO EDUCADOR
     // ==========================================
@@ -1509,23 +1613,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ativarEventosSelectCustomizado(wrapParcAttr);
             }
 
-            const listaLotesEquipe = document.getElementById("listaLotesEquipeCheckboxes");
-            if(listaLotesEquipe) {
-                let htmlLotesEquipe = '';
-                let lotesEmUsoEquipe = [];
-                window.todosEducandosBD.forEach(a => { lotesEmUsoEquipe.push(...a.lotesPendentes); lotesEmUsoEquipe.push(...a.lotesVendidos); });
-                window.todosParceirosBD.forEach(p => { lotesEmUsoEquipe.push(...p.lotesPendentes); lotesEmUsoEquipe.push(...p.lotesVendidos); });
-
-                const lotesEquipeFiltrados = window.lotesSedeBD.filter(l => l.codigo.toUpperCase().includes('EQU'));
-                lotesEquipeFiltrados.forEach(l => {
-                    if(lotesEmUsoEquipe.includes(l.codigo)) {
-                        htmlLotesEquipe += `<label class="checkbox-item-row" style="opacity: 0.5;"><input type="checkbox" class="roxo-checkbox" disabled> <span style="text-decoration: line-through;">${l.codigo}</span> <span style="margin-left:auto; font-size:0.8rem; color:#a0a0a0;">Em uso</span></label>`;
-                    } else {
-                        htmlLotesEquipe += `<label class="checkbox-item-row"><input type="checkbox" class="roxo-checkbox" value="${l.codigo}"> <span>${l.codigo}</span></label>`;
-                    }
-                });
-                listaLotesEquipe.innerHTML = htmlLotesEquipe || '<div style="padding:15px; text-align:center; color:#a0a0a0;">Nenhum lote EQU vago na Sede.</div>';
-            }
+            if (window.renderListaAtribuicaoVendaDireta) window.renderListaAtribuicaoVendaDireta();
 
             const selectEquipeAttr = document.getElementById("opcoesEquipeAtribuir");
             const wrapEquipeAttr = document.getElementById("wrapperEquipeAtribuir");
@@ -1662,9 +1750,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 e.preventDefault();
                 const nomeInput = document.getElementById("equipeAtribuirSelect").value;
                 const checkboxesMarcados = document.querySelectorAll('#listaLotesEquipeCheckboxes input[type="checkbox"]:checked');
-                const lotesArray = Array.from(checkboxesMarcados).map(cb => cb.value);
+                const lotesMarcados = Array.from(checkboxesMarcados).map(cb => cb.value);
+                const lotesDigitados = obterLotesDigitadosManual('inputLotesVendaDiretaManual');
+                const lotesArray = Array.from(new Map([...lotesMarcados, ...lotesDigitados].map(l => [normalizarCodigoLote(l), l.trim()])).values()).filter(Boolean);
 
-                if(!nomeInput || lotesArray.length === 0) return window.abrirModalErro("Selecione o colaborador e marque pelo menos um lote EQU.");
+                if(!nomeInput || lotesArray.length === 0) return window.abrirModalErro("Selecione o vendedor direto e informe pelo menos um lote disponível.");
+
+                const mapaDisponiveis = new Map(coletarLotesDisponiveisVendaDireta().map(item => [normalizarCodigoLote(item.lote), item.lote]));
+                const invalidos = lotesArray.filter(lote => !mapaDisponiveis.has(normalizarCodigoLote(lote)));
+                if (invalidos.length) return window.abrirModalErro(`Lote(s) indisponível(is) para Venda Direta: ${invalidos.join(', ')}. Confira se já estão vendidos ou pendentes com educando/parceiro.`);
+
                 const btn = formAtribuirLoteEquipe.querySelector("button[type='submit']");
                 btn.innerText = "Atribuindo..."; btn.disabled = true;
 
@@ -1672,9 +1767,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 .then(res => res.json()).then(data => {
                     btn.innerText = "Confirmar Atribuição"; btn.disabled = false;
                     if(data.success) {
-                        window.registrarLog("Atribuição Venda Direta", `Atribuiu lotes ${lotesArray.join(', ')} para o colaborador ${nomeInput}`);
+                        window.registrarLog("Atribuição Venda Direta", `Separou/atribuiu lotes ${lotesArray.join(', ')} para Venda Direta com referência em ${nomeInput}`);
                         fecharModal('modalAtribuirLoteEquipe'); formAtribuirLoteEquipe.reset(); 
-                        window.abrirModalSucesso("Lotes de venda direta atribuídos com sucesso!"); window.carregarDadosDoBanco(); 
+                        window.abrirModalSucesso("Lotes separados para venda direta com sucesso! Eles continuam acessíveis para a Venda Direta e só ficarão válidos após confirmação da venda."); window.carregarDadosDoBanco(); 
                     } else window.abrirModalErro(data.message);
                 }).catch(() => { btn.disabled = false; window.abrirModalErro("Erro de rede."); });
             });
@@ -1821,6 +1916,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!pessoa.lotesVendidos.some(l => normalizarCodigoLote(l) === normalizarCodigoLote(lote))) pessoa.lotesVendidos.push(lote);
         if (isVendaDireta) {
             window.todosEducandosBD.forEach(p => {
+                if (ehVendaDireta(p) && Array.isArray(p.lotesPendentes)) p.lotesPendentes = p.lotesPendentes.filter(l => normalizarCodigoLote(l) !== normalizarCodigoLote(lote));
                 if (!ehVendaDireta(p) && Array.isArray(p.lotesDevolvidos)) p.lotesDevolvidos = p.lotesDevolvidos.filter(l => normalizarCodigoLote(l) !== normalizarCodigoLote(lote));
             });
         }
