@@ -7,10 +7,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWD-pi7qf1Vlp01I8CO-7euJmqsNureruSEjeFc9bdYUZ_M13he6bqBC_ctJGHUpc4ow/exec'; 
-    
-    // ==========================================
-    // CLOUDINARY CONFIGURAÇÃO
-    // ==========================================
     const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dliu0ck6y/image/upload'; 
     const CLOUDINARY_PRESET = 'bingo_2026';
     
@@ -19,19 +15,25 @@ document.addEventListener("DOMContentLoaded", () => {
     window.fotoFileGlobal = null; 
     let cropperInstancia = null;
     window.alunoEmFocoIdx = null; 
-    window.modoEdicaoFoto = false; // Flag para saber se estamos editando ou criando
+    window.modoEdicaoFoto = false; 
+    window.tipoCadastroFoto = 'aluno';
+    window.tipoPessoaEmFoco = 'Educando';
     
     window.lotesValidadosNestaSessao = new Set(); 
 
     window.pages = {
         rankAdm: { current: 1, term: "" },
         gestaoLotes: { current: 1, term: "" },
+        pendentesAdm: { current: 1, term: "" },
+        pendentesEdu: { current: 1, term: "" },
         logs: { current: 1 },
         caixa: { current: 1 },
         rankProfAdm: { current: 1 },
         minhaTurma: { current: 1, term: "", turma: "Todas" },
         rankEdu: { current: 1, term: "" },
-        rankProfEdu: { current: 1 }
+        rankProfEdu: { current: 1 },
+        rankEquipe: { current: 1 },
+        parceiros: { current: 1 }
     };
 
     let estoqueChartInstEdu = null; let financeiroChartInstEdu = null;
@@ -40,7 +42,8 @@ document.addEventListener("DOMContentLoaded", () => {
     window.caixaGlobal = { pixReais: 0.00, dinReais: 0.00 };
     window.caixaGlobalBD = []; 
     window.todosEducandosBD = []; window.mockEducadoresBD = [];
-    window.mockParceirosBD = []; window.lotesSedeBD = []; window.logsDoSistema = [];
+    window.todosParceirosBD = []; window.lotesSedeBD = []; window.logsDoSistema = [];
+    window.historicoLotesBD = [];
 
     window.renderPaginationUI = function(containerId, key, totalItems, itemsPerPage, renderFunc) {
         const container = document.getElementById(containerId);
@@ -69,6 +72,10 @@ document.addEventListener("DOMContentLoaded", () => {
     window.registrarLog = function(acao, detalhe) {
         const dataHora = new Date().toLocaleString('pt-BR');
         const sessao = window.innerWidth <= 768 ? 'Mobile' : 'Desktop';
+        
+        window.logsDoSistema.push({ 'Data/Hora': dataHora, 'Responsavel': userName, 'Sessão_Dispositivo': sessao, 'Ação_Registrada': acao, 'Detalhes': detalhe });
+        if(document.getElementById('tabelaLogs') && window.renderLogsPaginado) window.renderLogsPaginado();
+        
         fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'registrar_log', dataHora, responsavel: userName, sessao, acao, detalhe, localizacao: 'Sistema Web' }) }).catch(e => console.error("Erro log", e));
     }
 
@@ -157,11 +164,19 @@ document.addEventListener("DOMContentLoaded", () => {
                     nome: e['Nome_Educando'] || e['Nome'], curso: e['Curso'], turma: e['Turma'], periodo: e['Periodo'], 
                     educadorResponsavel: e['Educador_Responsavel'] || '',
                     cadastroAtivo: e['Cadastro_Ativo'] || '',
-                    foto: e['Foto_URL'] && String(e['Foto_URL']).trim() !== '' ? e['Foto_URL'] : `https://ui-avatars.com/api/?name=${e['Nome_Educando'] || e['Nome']}&background=BC68A1&color=fff`,
+                    foto: e['Foto_URL'] && String(e['Foto_URL']).trim() !== '' ? e['Foto_URL'] : `https://ui-avatars.com/api/?name=${encodeURIComponent(e['Nome_Educando'] || e['Nome'])}&background=BC68A1&color=fff`,
                     lotesPendentes: e['Lotes_Pendentes'] ? String(e['Lotes_Pendentes']).split(',').map(s=>s.trim()).filter(Boolean) : [],
                     lotesVendidos: e['Lotes_Vendidos'] ? String(e['Lotes_Vendidos']).split(',').map(s=>s.trim()).filter(Boolean) : [],
                     lotesDevolvidos: e['Lotes_Devolvidos'] ? String(e['Lotes_Devolvidos']).split(',').map(s=>s.trim()).filter(Boolean) : [],
                     cartelasEntregues: parseInt(e['Cartelas_Entregue']) || 0
+                }));
+
+                window.todosParceirosBD = (data.parceiros || []).map(p => ({
+                    nome: p['Nome'], cartela: p['Cartela_Retirada'] || '', turma: 'Parceiro', curso: 'Comércio/Apoiador',
+                    foto: `https://ui-avatars.com/api/?name=${encodeURIComponent(p['Nome'])}&background=4CAF50&color=fff`,
+                    lotesPendentes: p['Lotes_Pendentes'] ? String(p['Lotes_Pendentes']).split(',').map(s=>s.trim()).filter(Boolean) : [],
+                    lotesVendidos: p['Lotes_Vendidos'] ? String(p['Lotes_Vendidos']).split(',').map(s=>s.trim()).filter(Boolean) : [],
+                    lotesDevolvidos: []
                 }));
 
                 window.mockEducadoresBD = data.educadores.map(e => {
@@ -180,13 +195,26 @@ document.addEventListener("DOMContentLoaded", () => {
                 window.caixaGlobalBD = data.caixaGlobal || []; 
                 if (data.caixaGlobal) {
                     data.caixaGlobal.forEach(transacao => {
-                        let valor = parseFloat(transacao['Valor']) || parseFloat(transacao['Valor_Total']) || 0;
-                        if(transacao['Metodo_Pagamento'] === 'PIX') window.caixaGlobal.pixReais += valor;
-                        if(transacao['Metodo_Pagamento'] === 'Dinheiro') window.caixaGlobal.dinReais += valor;
+                        let valor = parseFloat(transacao['Valor']) || parseFloat(transacao['Valor_Total']) || parseFloat(transacao['Valor Recebido']) || 0;
+                        let m = String(transacao['Metodo_Pagamento'] || transacao['Método'] || transacao['Metodo'] || transacao['Forma_Pagamento'] || '').toUpperCase();
+                        if(m.includes('PIX')) window.caixaGlobal.pixReais += valor;
+                        if(m.includes('DINHEIRO') || m.includes('ESPECIE') || m.includes('MISTO')) window.caixaGlobal.dinReais += valor;
                     });
                 }
                 
                 window.logsDoSistema = data.logs || [];
+                window.historicoLotesBD = (data.historicoLotes || []).map(h => ({
+                    dataRetirada: h['Data_Retirada'] || h['Data Retirada'] || h['Data/Hora'] || '',
+                    nome: h['Nome'] || '',
+                    tipo: h['Tipo'] || 'Educando',
+                    curso: h['Curso'] || '',
+                    turma: h['Turma'] || '',
+                    lote: h['Lote'] || '',
+                    atribuidoPor: h['Atribuido_Por'] || h['Atribuído Por'] || h['Quem_Atribuiu'] || '',
+                    status: h['Status'] || '',
+                    dataFinalizacao: h['Data_Finalizacao'] || '',
+                    finalizadoPor: h['Finalizado_Por'] || ''
+                }));
 
                 if(btnSync) btnSync.innerText = userName;
                 if (recarregarTelas) {
@@ -224,16 +252,189 @@ document.addEventListener("DOMContentLoaded", () => {
         return { fone, cartelas };
     }
 
-    // ==========================================
-    // CROP E CLOUDINARY (NOVO E EDIÇÃO)
-    // ==========================================
+    function normalizarCodigoLote(valor) {
+        return String(valor || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+    }
+
+    function escaparHTML(valor) {
+        return String(valor ?? '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
+    }
+
+    function escaparCSV(valor) {
+        const texto = String(valor ?? '').replace(/"/g, '""');
+        return `"${texto}"`;
+    }
+
+    function baixarCSVExcel(nomeArquivo, linhas) {
+        if (!linhas.length) return window.abrirModalErro("Não há pendências para exportar.");
+        const cabecalhos = ["Nome", "Curso", "Turma", "Lote pendente", "Data de retirada", "Quem atribuiu o lote"];
+        const csv = [cabecalhos, ...linhas.map(l => [l.nome, l.curso, l.turma, l.lote, l.dataRetirada, l.quemAtribuiu])]
+            .map(row => row.map(escaparCSV).join(';')).join('\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = nomeArquivo;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    function encontrarHistoricoPendente(nome, lote, tipo = 'Educando') {
+        const loteNorm = normalizarCodigoLote(lote);
+        const nomeNorm = String(nome || '').trim().toLowerCase();
+        const tipoNorm = String(tipo || 'Educando').trim().toLowerCase();
+        return [...window.historicoLotesBD].reverse().find(h => {
+            return normalizarCodigoLote(h.lote) === loteNorm &&
+                   String(h.nome || '').trim().toLowerCase() === nomeNorm &&
+                   String(h.tipo || 'Educando').trim().toLowerCase() === tipoNorm &&
+                   String(h.status || '').trim().toLowerCase() === 'pendente';
+        });
+    }
+
+    function montarPendenciasLotes(escopo = 'admin') {
+        let base = window.todosEducandosBD.filter(pessoa => pessoa.turma !== 'Equipe' && pessoa.lotesPendentes.length > 0);
+        if (escopo === 'educador') base = base.filter(pessoa => textoIgual(pessoa.educadorResponsavel, userName));
+
+        return base.flatMap(pessoa => pessoa.lotesPendentes.map(lote => {
+            const hist = encontrarHistoricoPendente(pessoa.nome, lote, 'Educando');
+            return {
+                nome: pessoa.nome,
+                curso: pessoa.curso || '-',
+                turma: pessoa.turma || '-',
+                lote,
+                dataRetirada: hist?.dataRetirada || 'Anterior à atualização',
+                quemAtribuiu: hist?.atribuidoPor || pessoa.educadorResponsavel || 'Não registrado'
+            };
+        })).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    }
+
+    function renderTabelaPendentes(containerId, pagId, pageKey, linhas, renderFunc) {
+        const tabela = document.getElementById(containerId);
+        if (!tabela) return;
+        const startIdx = (window.pages[pageKey].current - 1) * 10;
+        const paginated = linhas.slice(startIdx, startIdx + 10);
+        tabela.innerHTML = paginated.map(item => `
+            <tr>
+                <td><strong>${escaparHTML(item.nome)}</strong></td>
+                <td>${escaparHTML(item.curso)}</td>
+                <td>${escaparHTML(item.turma)}</td>
+                <td class="td-center"><span class="badge-lote badge-lote-pendente">${escaparHTML(item.lote)}</span></td>
+                <td>${escaparHTML(item.dataRetirada)}</td>
+                <td>${escaparHTML(item.quemAtribuiu)}</td>
+            </tr>
+        `).join('') || `<tr><td colspan="6" class="text-center" style="padding: 2rem; color:#a0a0a0;">Nenhum lote pendente encontrado.</td></tr>`;
+        renderPaginationUI(pagId, pageKey, linhas.length, 10, renderFunc);
+    }
+
+    window.renderPendentesAdminPaginado = function() {
+        let linhas = montarPendenciasLotes('admin');
+        if (window.pages.pendentesAdm.term) {
+            const term = window.pages.pendentesAdm.term.toLowerCase();
+            linhas = linhas.filter(item => `${item.nome} ${item.curso} ${item.turma} ${item.lote} ${item.quemAtribuiu}`.toLowerCase().includes(term));
+        }
+        const total = document.getElementById('totalPendentesADM');
+        if (total) total.innerText = linhas.length;
+        renderTabelaPendentes('tabelaPendentesADM', 'pagPendentesADM', 'pendentesAdm', linhas, 'renderPendentesAdminPaginado');
+    }
+
+    window.renderPendentesEducadorPaginado = function() {
+        let linhas = montarPendenciasLotes('educador');
+        if (window.pages.pendentesEdu.term) {
+            const term = window.pages.pendentesEdu.term.toLowerCase();
+            linhas = linhas.filter(item => `${item.nome} ${item.curso} ${item.turma} ${item.lote}`.toLowerCase().includes(term));
+        }
+        const total = document.getElementById('totalPendentesEducador');
+        if (total) total.innerText = linhas.length;
+        renderTabelaPendentes('tabelaPendentesEducador', 'pagPendentesEducador', 'pendentesEdu', linhas, 'renderPendentesEducadorPaginado');
+    }
+
+    window.exportarPendentesAdmin = function() {
+        const linhas = montarPendenciasLotes('admin');
+        if (!linhas.length) return baixarCSVExcel('', linhas);
+        const data = new Date().toISOString().slice(0, 10);
+        baixarCSVExcel(`pendentes_lotes_admin_${data}.csv`, linhas);
+        window.registrarLog("Exportação Pendentes", `Exportou ${linhas.length} lote(s) pendente(s) do painel administrativo.`);
+    }
+
+    window.exportarPendentesEducador = function() {
+        const linhas = montarPendenciasLotes('educador');
+        if (!linhas.length) return baixarCSVExcel('', linhas);
+        const data = new Date().toISOString().slice(0, 10);
+        baixarCSVExcel(`pendentes_lotes_${userName.replace(/\s+/g, '_')}_${data}.csv`, linhas);
+        window.registrarLog("Exportação Pendentes", `Exportou ${linhas.length} lote(s) pendente(s) do educador ${userName}.`);
+    }
+
+    function buscarCartelaNoSistema(codigoDigitado) {
+        const codigo = normalizarCodigoLote(codigoDigitado);
+        if (!codigo) return null;
+
+        const pessoas = [
+            ...window.todosEducandosBD.map(p => ({ ...p, tipo: p.turma === 'Equipe' ? 'Equipe' : 'Educando' })),
+            ...window.todosParceirosBD.map(p => ({ ...p, tipo: 'Parceiro' }))
+        ];
+
+        for (const pessoa of pessoas) {
+            if ((pessoa.lotesPendentes || []).some(l => normalizarCodigoLote(l) === codigo)) {
+                return { status: 'VETADA', tipoAlerta: 'danger', pessoa, lote: codigo, motivo: 'A cartela/lote ainda está como PENDENTE. Não consta venda confirmada nem devolução no sistema.' };
+            }
+            if ((pessoa.lotesVendidos || []).some(l => normalizarCodigoLote(l) === codigo)) {
+                return { status: 'VÁLIDA', tipoAlerta: 'success', pessoa, lote: codigo, motivo: 'Venda confirmada no sistema.' };
+            }
+            if ((pessoa.lotesDevolvidos || []).some(l => normalizarCodigoLote(l) === codigo)) {
+                return { status: 'NÃO VÁLIDA', tipoAlerta: 'warning', pessoa, lote: codigo, motivo: 'A cartela/lote foi devolvida e não deve ser considerada como venda ativa.' };
+            }
+        }
+
+        const loteSede = window.lotesSedeBD.find(l => normalizarCodigoLote(l.codigo) === codigo);
+        if (loteSede) return { status: 'NÃO VÁLIDA', tipoAlerta: 'warning', pessoa: null, lote: codigo, motivo: loteSede.educador ? `Lote está com ${loteSede.educador}, mas sem venda confirmada.` : 'Lote está na Sede, sem venda confirmada.' };
+        return { status: 'NÃO ENCONTRADA', tipoAlerta: 'danger', pessoa: null, lote: codigo, motivo: 'Não localizei essa cartela/lote nas bases carregadas. Confira a numeração antes de validar.' };
+    }
+
+    window.validarCartelaPendente = function(inputId, resultId) {
+        const input = document.getElementById(inputId);
+        const result = document.getElementById(resultId);
+        if (!input || !result) return;
+        const codigo = input.value.trim();
+        if (!codigo) return window.abrirModalErro('Digite o número da cartela/lote para validar.');
+
+        const resultado = buscarCartelaNoSistema(codigo);
+        if (!resultado) return;
+        const pessoa = resultado.pessoa;
+        const detalhesPessoa = pessoa ? `
+            <div class="validador-meta"><strong>Nome:</strong> ${escaparHTML(pessoa.nome)}</div>
+            <div class="validador-meta"><strong>Curso:</strong> ${escaparHTML(pessoa.curso || '-')}</div>
+            <div class="validador-meta"><strong>Turma/Categoria:</strong> ${escaparHTML(pessoa.turma || pessoa.tipo || '-')}</div>
+            <div class="validador-meta"><strong>Tipo:</strong> ${escaparHTML(pessoa.tipo || 'Educando')}</div>
+        ` : '';
+
+        result.innerHTML = `
+            <div class="validador-result ${resultado.tipoAlerta}">
+                <div class="validador-status">${escaparHTML(resultado.status)}</div>
+                <div class="validador-lote">${escaparHTML(resultado.lote)}</div>
+                <p>${escaparHTML(resultado.motivo)}</p>
+                ${detalhesPessoa}
+            </div>
+        `;
+        window.registrarLog("Validador de Cartela", `Consultou ${resultado.lote}: ${resultado.status}`);
+    }
+
+    window.limparValidadorCartela = function(inputId, resultId) {
+        const input = document.getElementById(inputId);
+        const result = document.getElementById(resultId);
+        if (input) input.value = '';
+        if (result) result.innerHTML = '';
+        if (input) input.focus();
+    }
+
     window.iniciarCorteFoto = function(event) {
         const input = event.target;
         if (input.files && input.files[0]) {
             const reader = new FileReader();
             reader.onload = function(e) {
                 const imgToCrop = document.getElementById('imagemParaCorte'); imgToCrop.src = e.target.result;
-                window.modoEdicaoFoto = false; abrirModal('modalCorteFoto');
+                window.modoEdicaoFoto = false; window.tipoCadastroFoto = 'aluno'; abrirModal('modalCorteFoto');
                 if(cropperInstancia) cropperInstancia.destroy();
                 cropperInstancia = new Cropper(imgToCrop, { aspectRatio: 1, viewMode: 1 });
             }
@@ -242,7 +443,21 @@ document.addEventListener("DOMContentLoaded", () => {
         input.value = ''; 
     }
 
-    // Função engatilhada ao clicar no lápis da ficha do aluno
+    window.iniciarCorteColaborador = function(event) {
+        const input = event.target;
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imgToCrop = document.getElementById('imagemParaCorte'); imgToCrop.src = e.target.result;
+                window.modoEdicaoFoto = false; window.tipoCadastroFoto = 'colaborador'; abrirModal('modalCorteFoto');
+                if(cropperInstancia) cropperInstancia.destroy();
+                cropperInstancia = new Cropper(imgToCrop, { aspectRatio: 1, viewMode: 1 });
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+        input.value = ''; 
+    }
+
     window.iniciarCorteEdicao = function(event) {
         const input = event.target;
         if (input.files && input.files[0]) {
@@ -264,7 +479,6 @@ document.addEventListener("DOMContentLoaded", () => {
             e.preventDefault();
             if(cropperInstancia) {
                 if (window.modoEdicaoFoto && window.alunoEmFocoIdx !== null) {
-                    // LÓGICA DE EDIÇÃO (Salva direto na nuvem e no Google Sheets)
                     btnConfirmarCorte.innerText = "Enviando para a Nuvem..."; btnConfirmarCorte.disabled = true;
                     cropperInstancia.getCroppedCanvas({ width: 300, height: 300 }).toBlob((blob) => {
                         const formData = new FormData(); 
@@ -275,28 +489,34 @@ document.addEventListener("DOMContentLoaded", () => {
                         .then(r => r.json()).then(dataImg => {
                             if(dataImg.secure_url) {
                                 const urlDaFoto = dataImg.secure_url;
-                                const aluno = window.todosEducandosBD[window.alunoEmFocoIdx];
-                                aluno.foto = urlDaFoto;
+                                const pessoa = (window.tipoPessoaEmFoco === 'Parceiro') ? window.todosParceirosBD[window.alunoEmFocoIdx] : window.todosEducandosBD[window.alunoEmFocoIdx];
+                                pessoa.foto = urlDaFoto;
                                 document.getElementById('detalheFoto').src = urlDaFoto;
                                 
                                 if(document.getElementById("educadorPage")) window.atualizarDashboardEducador();
                                 if(document.getElementById("adminPage")) window.atualizarDashboardsADM();
                                 
-                                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'atualizar_foto', nomeAluno: aluno.nome, fotoUrl: urlDaFoto }) });
+                                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'atualizar_foto', nomeAluno: pessoa.nome, fotoUrl: urlDaFoto }) });
                                 
                                 fecharModal('modalCorteFoto'); window.abrirModalSucesso("Foto atualizada com sucesso!");
-                                window.registrarLog("Edição de Foto", `Atualizou a foto do aluno ${aluno.nome} via Cloudinary`);
                             } else { window.abrirModalErro("Erro do Cloudinary."); }
-                        }).catch(err => { window.abrirModalErro("Erro de rede ao enviar imagem."); })
+                        }).catch(() => { window.abrirModalErro("Erro de rede."); })
                         .finally(() => { btnConfirmarCorte.innerText = "Cortar e Salvar Foto"; btnConfirmarCorte.disabled = false; window.modoEdicaoFoto = false; });
                     }, 'image/jpeg');
                 } else {
-                    // LÓGICA DE CADASTRO NOVO (Apenas guarda o arquivo para o Form)
                     cropperInstancia.getCroppedCanvas({ width: 300, height: 300 }).toBlob((blob) => {
                         window.fotoFileGlobal = blob;
-                        document.getElementById('previewFoto').src = URL.createObjectURL(blob);
-                        document.getElementById('previewFoto').style.display = 'block';
-                        document.getElementById('iconCamera').style.display = 'none';
+                        if(window.tipoCadastroFoto === 'colaborador') {
+                            document.getElementById('previewFotoColaborador').src = URL.createObjectURL(blob);
+                            document.getElementById('previewFotoColaborador').style.display = 'block';
+                            document.getElementById('iconCameraColaborador').style.display = 'none';
+                        } else {
+                            if(document.getElementById('previewFoto')) {
+                                document.getElementById('previewFoto').src = URL.createObjectURL(blob);
+                                document.getElementById('previewFoto').style.display = 'block';
+                                document.getElementById('iconCamera').style.display = 'none';
+                            }
+                        }
                         fecharModal('modalCorteFoto');
                     }, 'image/jpeg');
                 }
@@ -305,12 +525,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // ==========================================
-    // RENDERIZADORES PAGINADOS (Tabelas Fluidas)
+    // RENDERIZADORES PAGINADOS
     // ==========================================
 
     window.renderRankingAlunosAdm = function() {
         const tabela = document.getElementById("tabelaRankingAlunosADM"); if(!tabela) return;
-        let filtrados = [...window.todosEducandosBD].sort((a, b) => b.lotesVendidos.length - a.lotesVendidos.length);
+        let filtrados = [...window.todosEducandosBD].filter(a => a.turma !== 'Equipe').sort((a, b) => b.lotesVendidos.length - a.lotesVendidos.length);
         filtrados = filtrados.filter(a => a.lotesVendidos.length > 0 || a.lotesPendentes.length > 0);
         if (window.pages.rankAdm.term) filtrados = filtrados.filter(a => a.nome.toLowerCase().includes(window.pages.rankAdm.term.toLowerCase()));
 
@@ -323,7 +543,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const cartelasHTML = rec.cartelas > 0 ? `<div class="flex-center" style="font-weight:bold; color:var(--sunflower-gold);">${rec.cartelas}</div>` : '-';
             const foneHTML = rec.fone > 0 ? '<span class="material-symbols-outlined" style="color:var(--petal-pink);">headphones</span>' : '-';
             const tagMeu = `<br><small style="color:#a0a0a0">Edu: ${aluno.educadorResponsavel}</small>`;
-            return `<tr onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(aluno)})"><td class="td-center" style="font-weight: bold;">${posReal}º</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong style="color:var(--obsidian);">${aluno.nome}</strong>${tagMeu}</td><td style="color:var(--dim-grey);">${aluno.turma}</td><td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td><td class="td-center">${cartelasHTML}</td><td class="td-center">${foneHTML}</td></tr>`;
+            return `<tr onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(aluno)}, 'Educando')"><td class="td-center" style="font-weight: bold;">${posReal}º</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong style="color:var(--obsidian);">${aluno.nome}</strong>${tagMeu}</td><td style="color:var(--dim-grey);">${aluno.turma}</td><td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td><td class="td-center">${cartelasHTML}</td><td class="td-center">${foneHTML}</td></tr>`;
         }).join('') || '<tr><td colspan="9" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum aluno encontrado.</td></tr>';
         
         renderPaginationUI('pagRankingAlunos', 'rankAdm', filtrados.length, 10, 'renderRankingAlunosAdm');
@@ -331,7 +551,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.renderRankingAlunosEdu = function() {
         const tabela = document.getElementById("tabelaRankingEducador"); if(!tabela) return;
-        let filtrados = [...window.todosEducandosBD].sort((a, b) => b.lotesVendidos.length - a.lotesVendidos.length);
+        let filtrados = [...window.todosEducandosBD].filter(a => a.turma !== 'Equipe').sort((a, b) => b.lotesVendidos.length - a.lotesVendidos.length);
         filtrados = filtrados.filter(a => a.lotesVendidos.length > 0 || a.lotesPendentes.length > 0);
         if (window.pages.rankEdu.term) filtrados = filtrados.filter(a => a.nome.toLowerCase().includes(window.pages.rankEdu.term.toLowerCase()));
 
@@ -345,23 +565,76 @@ document.addEventListener("DOMContentLoaded", () => {
             const foneHTML = rec.fone > 0 ? '<span class="material-symbols-outlined" style="color:var(--petal-pink);">headphones</span>' : '-';
             const destaque = textoIgual(aluno.educadorResponsavel, userName) ? 'background-color: rgba(188, 104, 161, 0.05);' : '';
             const tagMeu = textoIgual(aluno.educadorResponsavel, userName) ? ' <br><span style="font-size:0.7rem; background:var(--petal-pink); color:white; padding:2px 4px; border-radius:4px;">Seu Aluno</span>' : '';
-            return `<tr style="${destaque}" onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(aluno)})"><td class="td-center" style="font-weight: bold;">${posReal}º</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong style="color:var(--obsidian);">${aluno.nome}</strong>${tagMeu}</td><td style="color:var(--dim-grey);">${aluno.turma}</td><td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td><td class="td-center">${cartelasHTML}</td><td class="td-center">${foneHTML}</td></tr>`;
+            return `<tr style="${destaque}" onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(aluno)}, 'Educando')"><td class="td-center" style="font-weight: bold;">${posReal}º</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong style="color:var(--obsidian);">${aluno.nome}</strong>${tagMeu}</td><td style="color:var(--dim-grey);">${aluno.turma}</td><td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td><td class="td-center">${cartelasHTML}</td><td class="td-center">${foneHTML}</td></tr>`;
         }).join('') || '<tr><td colspan="9" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum aluno encontrado.</td></tr>';
         
         renderPaginationUI('pagRankingEducador', 'rankEdu', filtrados.length, 10, 'renderRankingAlunosEdu');
     }
 
+    window.renderRankingEquipeAdm = function() {
+        const tabela = document.getElementById("tabelaRankingEquipeADM"); if(!tabela) return;
+        let filtrados = window.todosEducandosBD.filter(a => a.turma === 'Equipe').sort((a, b) => b.lotesVendidos.length - a.lotesVendidos.length);
+        
+        const startIdx = (window.pages.rankEquipe.current - 1) * 10;
+        const paginated = filtrados.slice(startIdx, startIdx + 10);
+
+        tabela.innerHTML = paginated.map((colab, index) => {
+            const valorArrecadado = (colab.lotesVendidos.length * 20).toFixed(2).replace('.', ',');
+            return `<tr style="cursor: pointer;" onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(colab)}, 'Equipe')">
+                <td class="td-center" style="font-weight: bold; color: var(--petal-pink);">${startIdx + index + 1}º</td>
+                <td><img src="${colab.foto}" class="table-avatar" style="border: 2px solid var(--sunflower-gold);"></td>
+                <td><strong>${colab.nome}</strong><br><small style="color:var(--sunflower-gold); font-weight:bold;">Colaborador</small></td>
+                <td class="td-center" style="font-weight: bold; font-size: 1.1rem;">${colab.lotesVendidos.length}</td>
+                <td class="td-center highlight-purple" style="font-weight: bold;">R$ ${valorArrecadado}</td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="5" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum colaborador registrado.</td></tr>';
+        
+        renderPaginationUI('pagRankingEquipe', 'rankEquipe', filtrados.length, 10, 'renderRankingEquipeAdm');
+    }
+
+    window.renderParceirosListaPaginado = function() {
+        const tabela = document.getElementById("tabelaParceirosLista"); if(!tabela) return;
+        let filtrados = [...window.todosParceirosBD];
+        
+        const startIdx = (window.pages.parceiros.current - 1) * 10;
+        const paginated = filtrados.slice(startIdx, startIdx + 10);
+
+        tabela.innerHTML = paginated.map((parc, index) => {
+            const valorArrecadado = (parc.lotesVendidos.length * 20).toFixed(2).replace('.', ',');
+            return `<tr style="cursor: pointer;" onclick="abrirDetalhesAluno(${window.todosParceirosBD.indexOf(parc)}, 'Parceiro')">
+                <td><img src="${parc.foto}" class="table-avatar" style="border: 2px solid #4CAF50;"></td>
+                <td><strong>${parc.nome}</strong><br><small style="color:#4CAF50; font-weight:bold;">Comércio Parceiro</small></td>
+                <td class="td-center" style="font-weight: bold; font-size: 1.1rem;">${parc.lotesVendidos.length}</td>
+                <td class="td-center highlight-purple" style="font-weight: bold;">R$ ${valorArrecadado}</td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="4" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum parceiro registrado.</td></tr>';
+        
+        renderPaginationUI('pagParceiros', 'parceiros', filtrados.length, 10, 'renderParceirosListaPaginado');
+    }
+
     window.renderGestaoLotesPaginado = function() {
         const tabela = document.getElementById('tabelaGestaoLotes'); if(!tabela) return;
-        let filtrados = window.todosEducandosBD.filter(a => a.lotesPendentes.length > 0);
+        
+        let listaUnificada = [
+            ...window.todosEducandosBD.map(e => ({ ...e, tipo: e.turma === 'Equipe' ? 'Equipe' : 'Educando', bdIdx: window.todosEducandosBD.indexOf(e) })),
+            ...window.todosParceirosBD.map(p => ({ ...p, tipo: 'Parceiro', bdIdx: window.todosParceirosBD.indexOf(p) }))
+        ];
+
+        let filtrados = listaUnificada.filter(a => a.lotesPendentes.length > 0);
         if(window.pages.gestaoLotes.term) filtrados = filtrados.filter(a => a.nome.toLowerCase().includes(window.pages.gestaoLotes.term.toLowerCase()));
 
         const startIdx = (window.pages.gestaoLotes.current - 1) * 10;
         const paginated = filtrados.slice(startIdx, startIdx + 10);
 
-        tabela.innerHTML = paginated.map((aluno) => {
-            const indexOrig = window.todosEducandosBD.indexOf(aluno);
-            return `<tr style="cursor: pointer;" onclick="abrirDetalhesAluno(${indexOrig})"><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong>${aluno.nome}</strong></td><td style="color:var(--dim-grey);">${aluno.curso}<br><small style="color:#a0a0a0">${aluno.turma}</small></td><td class="td-center highlight-yellow" style="font-weight:bold; font-size:1.1rem;">${aluno.lotesPendentes.length}</td></tr>`;
+        tabela.innerHTML = paginated.map((pessoa) => {
+            let corBadge = pessoa.tipo === 'Parceiro' ? '#4CAF50' : (pessoa.tipo === 'Equipe' ? 'var(--sunflower-gold)' : 'var(--petal-pink)');
+            let descCategoria = pessoa.tipo === 'Equipe' ? 'Venda Direta' : (pessoa.tipo === 'Parceiro' ? 'Parceiro' : `Educando (${pessoa.turma})`);
+            return `<tr style="cursor: pointer;" onclick="abrirDetalhesAluno(${pessoa.bdIdx}, '${pessoa.tipo}')">
+                <td><img src="${pessoa.foto}" class="table-avatar" style="border: 2px solid ${corBadge};"></td>
+                <td><strong>${pessoa.nome}</strong><br><small style="color:${corBadge}; font-weight:bold;">${pessoa.tipo}</small></td>
+                <td style="color:var(--dim-grey);">${pessoa.curso || '-'}<br><small style="color:var(--light-grey);">${descCategoria}</small></td>
+                <td class="td-center highlight-yellow" style="font-weight:bold; font-size:1.1rem;">${pessoa.lotesPendentes.length}</td>
+            </tr>`;
         }).join('') || `<tr><td colspan="4" class="text-center" style="padding: 2rem; color: #a0a0a0;">Nenhum lote pendente.</td></tr>`;
         
         renderPaginationUI('pagLotes', 'gestaoLotes', filtrados.length, 10, 'renderGestaoLotesPaginado');
@@ -391,15 +664,18 @@ document.addEventListener("DOMContentLoaded", () => {
         const paginated = filtrados.slice(startIdx, startIdx + 10);
 
         tabela.innerHTML = paginated.map(tx => {
-            const dt = tx['Data/Hora'] || tx['Data_Hora'] || tx['Data'] || '-';
-            const id = tx['ID_Transacao'] || tx['ID'] || '-';
-            const lote = tx['Lote'] || tx['Codigo_Lote'] || '-';
-            const edu = tx['Educando'] || tx['Aluno'] || '-';
-            const val = parseFloat(tx['Valor'] || 0).toFixed(2).replace('.', ',');
-            const met = tx['Metodo_Pagamento'] || tx['Método'] || tx['Metodo'] || '-';
-            const resp = tx['Responsavel'] || tx['Educador Responsavel'] || '-';
+            const dt = tx['Data/Hora'] || tx['Data_Hora'] || tx['Data Hora'] || tx['Data'] || tx['Carimbo de data/hora'] || '-';
+            const id = tx['ID_Transacao'] || tx['ID Transação'] || tx['ID Transacao'] || tx['ID'] || tx['Id'] || '-';
+            const lote = tx['Lote'] || tx['Codigo_Lote'] || tx['Código Lote'] || tx['Código'] || '-';
+            const edu = tx['Educando'] || tx['Aluno'] || tx['Nome'] || tx['Vendedor'] || tx['Parceiro'] || '-';
+            const valRaw = tx['Valor'] || tx['Valor_Total'] || tx['Valor Recebido'] || tx['Valor(R$)'] || 0;
+            const val = parseFloat(valRaw).toFixed(2).replace('.', ',');
+            const met = tx['Metodo_Pagamento'] || tx['Método de Pagamento'] || tx['Método'] || tx['Metodo'] || tx['Forma_Pagamento'] || tx['Forma de Pagamento'] || '-';
+            const resp = tx['Responsavel'] || tx['Responsável'] || tx['Educador Responsável'] || tx['Educador'] || '-';
+            
             return `<tr><td>${dt}</td><td><span style="color:#a0a0a0; font-size:0.8rem;">${id}</span></td><td><strong>${lote}</strong></td><td>${edu}</td><td class="highlight-purple" style="font-weight:bold;">R$ ${val}</td><td>${met}</td><td>${resp}</td></tr>`;
-        }).join('') || `<tr><td colspan="7" class="text-center" style="padding: 2rem; color: #a0a0a0;">Nenhuma transação.</td></tr>`;
+        }).join('') || `<tr><td colspan="7" class="text-center" style="padding: 2rem; color: #a0a0a0;">Nenhuma transação registrada. Verifique se a linha 1 do Google Sheets possui cabeçalhos.</td></tr>`;
+        
         renderPaginationUI('pagLivroCaixa', 'caixa', filtrados.length, 10, 'renderLivroCaixaPaginado');
     }
 
@@ -418,7 +694,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const rec = calcularRecompensas(aluno.lotesVendidos.length);
             const cartelasHTML = rec.cartelas > 0 ? `<div class="flex-center" style="font-weight:bold; color:var(--sunflower-gold);">${rec.cartelas}</div>` : '-';
             const foneHTML = rec.fone > 0 ? '<span class="material-symbols-outlined" style="color:var(--petal-pink);">headphones</span>' : '-';
-            return `<tr onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(aluno)})"><td class="td-center" style="font-weight: bold; color: #BC68A1;">${posReal}</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong>${aluno.nome}</strong><br><small style="color:#a0a0a0">${aluno.curso}</small></td><td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td><td class="td-center">${cartelasHTML}</td><td class="td-center">${foneHTML}</td></tr>`;
+            return `<tr onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(aluno)}, 'Educando')"><td class="td-center" style="font-weight: bold; color: #BC68A1;">${posReal}</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong>${aluno.nome}</strong><br><small style="color:#a0a0a0">${aluno.curso}</small></td><td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td><td class="td-center">${cartelasHTML}</td><td class="td-center">${foneHTML}</td></tr>`;
         }).join('') || '<tr><td colspan="8" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum aluno encontrado.</td></tr>';
         
         renderPaginationUI('pagMinhaTurma', 'minhaTurma', filtrados.length, 10, 'renderMinhaTurmaPaginado');
@@ -433,8 +709,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const srchLotes = document.getElementById("buscaGestaoLotes");
     if(srchLotes) srchLotes.addEventListener('input', (e) => { window.pages.gestaoLotes.term = e.target.value; window.pages.gestaoLotes.current = 1; window.renderGestaoLotesPaginado(); });
 
+    const srchPendAdm = document.getElementById("buscaPendentesAdm");
+    if(srchPendAdm) srchPendAdm.addEventListener('input', (e) => { window.pages.pendentesAdm.term = e.target.value; window.pages.pendentesAdm.current = 1; window.renderPendentesAdminPaginado(); });
+
+    const srchPendEdu = document.getElementById("buscaPendentesEducador");
+    if(srchPendEdu) srchPendEdu.addEventListener('input', (e) => { window.pages.pendentesEdu.term = e.target.value; window.pages.pendentesEdu.current = 1; window.renderPendentesEducadorPaginado(); });
+
     // ==========================================
-    // LÓGICA DO EDUCADOR E ADM
+    // SEÇÃO DO EDUCADOR
     // ==========================================
     const educadorPage = document.getElementById("educadorPage");
     if (educadorPage) {
@@ -447,6 +729,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         window.atualizarDashboardEducador = function() {
             window.renderMinhaTurmaPaginado();
+            window.renderPendentesEducadorPaginado();
 
             let totalPendentesGeral = 0, totalVendidosGeral = 0;
             window.todosEducandosBD.forEach(a => { totalPendentesGeral += a.lotesPendentes.length; totalVendidosGeral += a.lotesVendidos.length; });
@@ -461,17 +744,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const vVendasPix = window.caixaGlobal.pixReais; const vVendasDin = window.caixaGlobal.dinReais;
             const vVendas = vVendasPix + vVendasDin; const vPendentes = totalPendentesGeral * 20.00;
-            if(document.getElementById('kpiVendasReaisGlobal')) document.getElementById('kpiVendasReaisGlobal').innerText = `R$ ${vVendas.toFixed(2).replace('.', ',')}`;
-            if(document.getElementById('kpiCaixaPix')) document.getElementById('kpiCaixaPix').innerText = `R$ ${vVendasPix.toFixed(2).replace('.', ',')}`;
-            if(document.getElementById('kpiCaixaDinheiro')) document.getElementById('kpiCaixaDinheiro').innerText = `R$ ${vVendasDin.toFixed(2).replace('.', ',')}`;
-            if(document.getElementById('kpiProjecaoGlobal')) document.getElementById('kpiProjecaoGlobal').innerText = `R$ ${vPendentes.toFixed(2).replace('.', ',')}`;
             
-            if (document.getElementById('estoqueChartEdu')) { 
-                if (!estoqueChartInstEdu) estoqueChartInstEdu = new Chart(document.getElementById('estoqueChartEdu').getContext('2d'), { type: 'doughnut', data: { labels: ['Válidos', 'Pendentes', 'Estoque'], datasets: [{ data: [totalVendidosGeral, totalPendentesGeral, 440], backgroundColor: ['#BC68A1', '#F4B841', '#e0e0e0'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false } });
+            const kpiGlobal = document.getElementById('kpiVendasReaisGlobal');
+            const kpiPix = document.getElementById('kpiCaixaPix');
+            const kpiDin = document.getElementById('kpiCaixaDinheiro');
+            const kpiProj = document.getElementById('kpiProjecaoGlobal');
+
+            if(kpiGlobal) kpiGlobal.innerText = `R$ ${vVendas.toFixed(2).replace('.', ',')}`;
+            if(kpiPix) kpiPix.innerText = `R$ ${vVendasPix.toFixed(2).replace('.', ',')}`;
+            if(kpiDin) kpiDin.innerText = `R$ ${vVendasDin.toFixed(2).replace('.', ',')}`;
+            if(kpiProj) kpiProj.innerText = `R$ ${vPendentes.toFixed(2).replace('.', ',')}`;
+            
+            const ctxEstEdu = document.getElementById('estoqueChartEdu');
+            if (ctxEstEdu && ctxEstEdu.offsetParent !== null) { 
+                if (!estoqueChartInstEdu) estoqueChartInstEdu = new Chart(ctxEstEdu.getContext('2d'), { type: 'doughnut', data: { labels: ['Válidos', 'Pendentes', 'Estoque'], datasets: [{ data: [totalVendidosGeral, totalPendentesGeral, 440], backgroundColor: ['#BC68A1', '#F4B841', '#e0e0e0'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false } });
                 else { estoqueChartInstEdu.data.datasets[0].data = [totalVendidosGeral, totalPendentesGeral, 440]; estoqueChartInstEdu.update(); }
             }
-            if (document.getElementById('financeiroChartEdu')) {
-                if (!financeiroChartInstEdu) financeiroChartInstEdu = new Chart(document.getElementById('financeiroChartEdu').getContext('2d'), { type: 'bar', data: { labels: ['Caixa Realizado', 'Projeção Restante'], datasets: [{ label: 'Valor em R$', data: [vVendas, vPendentes], backgroundColor: ['#BC68A1', '#F4B841'], borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } } });
+            const ctxFinEdu = document.getElementById('financeiroChartEdu');
+            if (ctxFinEdu && ctxFinEdu.offsetParent !== null) {
+                if (!financeiroChartInstEdu) financeiroChartInstEdu = new Chart(ctxFinEdu.getContext('2d'), { type: 'bar', data: { labels: ['Caixa Realizado', 'Projeção Restante'], datasets: [{ label: 'Valor em R$', data: [vVendas, vPendentes], backgroundColor: ['#BC68A1', '#F4B841'], borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } } });
                 else { financeiroChartInstEdu.data.datasets[0].data = [vVendas, vPendentes]; financeiroChartInstEdu.update(); }
             }
 
@@ -480,7 +771,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const tabelaRankingEducadores = document.getElementById('tabelaRankingEducadoresLista');
             if(tabelaRankingEducadores) {
                 let rankingProf = [...window.mockEducadoresBD].sort((a, b) => b.lotesVendidos - a.lotesVendidos);
-                
                 const startIdx = (window.pages.rankProfEdu.current - 1) * 10;
                 const paginated = rankingProf.slice(startIdx, startIdx + 10);
 
@@ -551,8 +841,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if(!nome || !turmaTexto) { btn.disabled = false; btn.innerText = "Ativar Educando"; return window.abrirModalErro("Preencha todos os campos."); }
                 let periodo = (turmaTexto === "Turma 3" || turmaTexto === "Turma 4") ? "Tarde" : "Manhã";
 
-                // UPLOAD PARA O CLOUDINARY
-                if(window.fotoFileGlobal && CLOUDINARY_URL) {
+                if(window.fotoFileGlobal && window.tipoCadastroFoto === 'aluno') {
                     const formData = new FormData(); 
                     formData.append('file', window.fotoFileGlobal); 
                     formData.append('upload_preset', CLOUDINARY_PRESET);
@@ -560,24 +849,25 @@ document.addEventListener("DOMContentLoaded", () => {
                     fetch(CLOUDINARY_URL, { method: 'POST', body: formData })
                     .then(r => r.json()).then(dataImg => {
                         if(dataImg.secure_url) { salvarEducandoBanco(nome, turmaTexto, periodo, dataImg.secure_url, btn); } 
-                        else { window.abrirModalErro("Falha no Cloudinary: " + (dataImg.error ? dataImg.error.message : "Erro desconhecido")); btn.innerText = "Ativar Educando"; btn.disabled = false; }
-                    }).catch(err => { console.error(err); window.abrirModalErro("Erro de rede ao enviar a foto."); btn.innerText = "Ativar Educando"; btn.disabled = false; });
+                        else { window.abrirModalErro("Falha no Cloudinary"); btn.innerText = "Ativar Educando"; btn.disabled = false; }
+                    }).catch(() => { window.abrirModalErro("Erro de rede."); btn.innerText = "Ativar Educando"; btn.disabled = false; });
                 } else { salvarEducandoBanco(nome, turmaTexto, periodo, "", btn); }
             });
         }
 
         function salvarEducandoBanco(nome, turmaTexto, periodo, fotoUrl, btn) {
-            btn.innerText = "Salvando...";
             fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'cadastrar_educando', nome: nome, turma: turmaTexto, periodo: periodo, educadorResponsavel: userName, fotoUrl: fotoUrl })
             }).then(res => res.json()).then(data => {
                 btn.innerText = "Ativar Educando"; btn.disabled = false;
                 if(data.success) {
                     window.registrarLog("Cadastro", `Ativou e vinculou foto ao aluno ${nome}`);
-                    fecharModal('modalCadastrarEducando'); formCadastrarEducando.reset();
+                    fecharModal('modalCadastrarEducando'); 
+                    const form = document.getElementById("formCadastrarEducando");
+                    if(form) form.reset();
                     window.fotoFileGlobal = null; document.getElementById('previewFoto').style.display = 'none'; document.getElementById('iconCamera').style.display = 'block';
                     window.abrirModalSucesso(data.message); window.carregarDadosDoBanco();
                 } else { window.abrirModalErro(data.message); }
-            }).catch(() => { btn.disabled = false; btn.innerText = "Ativar Educando"; window.abrirModalErro("Erro de rede."); });
+            }).catch(() => { btn.disabled = false; window.abrirModalErro("Erro de rede."); });
         }
 
         const formAtribuirLote = document.getElementById("formAtribuirLote");
@@ -592,36 +882,78 @@ document.addEventListener("DOMContentLoaded", () => {
                 const btn = formAtribuirLote.querySelector("button[type='submit']");
                 btn.innerText = "Atribuindo..."; btn.disabled = true;
 
-                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'atribuir_lote', nomeAluno: alunoInput, lotes: lotesArray }) })
+                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'atribuir_lote', nomeAluno: alunoInput, lotes: lotesArray, tipoPessoa: 'Educando', responsavel: userName }) })
                 .then(res => res.json()).then(data => {
                     btn.innerText = "Confirmar Atribuição"; btn.disabled = false;
                     if(data.success) {
                         window.registrarLog("Atribuição de Lote", `Atribuiu os lotes ${lotesArray.join(', ')} para ${alunoInput}`);
                         fecharModal('modalAtribuirLote'); formAtribuirLote.reset(); window.abrirModalSucesso("Lotes atribuídos!"); window.carregarDadosDoBanco(); 
                     } else { window.abrirModalErro(data.message); }
-                }).catch(err => { btn.disabled = false; btn.innerText = "Confirmar Atribuição"; window.abrirModalErro("Erro de rede."); });
+                }).catch(() => { btn.disabled = false; window.abrirModalErro("Erro de rede."); });
             });
         }
     }
 
+    // ==========================================
+    // SEÇÃO DO ADMINISTRADOR (BLINDADA CONTRA CRASHES)
+    // ==========================================
     const adminPage = document.getElementById("adminPage");
     if (adminPage) {
         
         window.atualizarDashboardsADM = function() {
-            let totalPendentes = 0, totalVendidos = 0; let ativos = 0; let inativos = 0; let totalAlunos = window.todosEducandosBD.length;
-            window.todosEducandosBD.forEach(a => { 
+            const kpiVendasEducandos = document.getElementById('kpiVendasEducandos');
+            const kpiVendasEquipe = document.getElementById('kpiVendasEquipe');
+            const kpiVendasParceiros = document.getElementById('kpiVendasParceiros');
+            const kpiCaixaPix = document.getElementById('kpiCaixaPix');
+            const kpiCaixaDinheiro = document.getElementById('kpiCaixaDinheiro');
+            const kpiVendasReaisGlobal = document.getElementById('kpiVendasReaisGlobal');
+            const kpiProjecaoGlobal = document.getElementById('kpiProjecaoGlobal');
+            const kpiParceirosArrecadado = document.getElementById('kpiParceirosArrecadado');
+            const kpiParceirosProjetado = document.getElementById('kpiParceirosProjetado');
+
+            let totalPendentes = 0, totalVendidos = 0; let ativos = 0; let inativos = 0; 
+            let alunosNormais = window.todosEducandosBD.filter(a => a.turma !== 'Equipe');
+            let totalAlunos = alunosNormais.length;
+
+            alunosNormais.forEach(a => { 
                 totalPendentes += a.lotesPendentes.length; totalVendidos += a.lotesVendidos.length; 
-                if(a.cadastroAtivo === 'Sim' || a.lotesVendidos.length > 0 || a.lotesPendentes.length > 0) ativos++; else inativos++;
+                if(a.turma !== 'Equipe') {
+                    if(a.cadastroAtivo === 'Sim' || a.lotesVendidos.length > 0 || a.lotesPendentes.length > 0) ativos++; else inativos++;
+                }
             });
 
-            const vVendasPix = window.caixaGlobal.pixReais; const vVendasDin = window.caixaGlobal.dinReais;
-            const vVendas = vVendasPix + vVendasDin; const vPendentes = totalPendentes * 20.00;
+            let vEdu = 0, vEquipe = 0, vParc = 0;
+            let vPix = 0, vDin = 0;
 
-            if(document.getElementById('kpiVendasReaisGlobal')) document.getElementById('kpiVendasReaisGlobal').innerText = `R$ ${vVendas.toFixed(2).replace('.', ',')}`;
-            if(document.getElementById('kpiCaixaPix')) document.getElementById('kpiCaixaPix').innerText = `R$ ${vVendasPix.toFixed(2).replace('.', ',')}`;
-            if(document.getElementById('kpiCaixaDinheiro')) document.getElementById('kpiCaixaDinheiro').innerText = `R$ ${vVendasDin.toFixed(2).replace('.', ',')}`;
-            if(document.getElementById('kpiProjecaoGlobal')) document.getElementById('kpiProjecaoGlobal').innerText = `R$ ${vPendentes.toFixed(2).replace('.', ',')}`;
+            window.caixaGlobalBD.forEach(tx => {
+                let val = parseFloat(tx['Valor']) || parseFloat(tx['Valor_Total']) || parseFloat(tx['Valor Recebido']) || 0;
+                let cat = tx['Categoria'] || 'Educando';
+                let m = String(tx['Metodo_Pagamento'] || tx['Método'] || tx['Metodo'] || tx['Forma_Pagamento'] || '').toUpperCase();
+
+                if(cat === 'Equipe') vEquipe += val;
+                else if(cat === 'Parceiro') vParc += val;
+                else vEdu += val;
+
+                if(m.includes('PIX')) vPix += val;
+                else if(m.includes('DINHEIRO') || m.includes('ESPECIE') || m.includes('MISTO')) vDin += val;
+            });
+
+            const vVendas = vPix + vDin; const vPendentes = totalPendentes * 20.00;
+
+            let pendentesParceiros = 0;
+            window.todosParceirosBD.forEach(p => { pendentesParceiros += p.lotesPendentes.length; });
+
+            if(kpiVendasEducandos) kpiVendasEducandos.innerText = `R$ ${vEdu.toFixed(2).replace('.', ',')}`;
+            if(kpiVendasEquipe) kpiVendasEquipe.innerText = `R$ ${vEquipe.toFixed(2).replace('.', ',')}`;
+            if(kpiVendasParceiros) kpiVendasParceiros.innerText = `R$ ${vParc.toFixed(2).replace('.', ',')}`;
+            if(kpiVendasReaisGlobal) kpiVendasReaisGlobal.innerText = `R$ ${vVendas.toFixed(2).replace('.', ',')}`;
+            if(kpiCaixaPix) kpiCaixaPix.innerText = `R$ ${vPix.toFixed(2).replace('.', ',')}`;
+            if(kpiCaixaDinheiro) kpiCaixaDinheiro.innerText = `R$ ${vDin.toFixed(2).replace('.', ',')}`;
+            if(kpiProjecaoGlobal) kpiProjecaoGlobal.innerText = `R$ ${vPendentes.toFixed(2).replace('.', ',')}`;
             
+            if(kpiParceirosArrecadado) kpiParceirosArrecadado.innerText = `R$ ${vParc.toFixed(2).replace('.', ',')}`;
+            if(kpiParceirosProjetado) kpiParceirosProjetado.innerText = `R$ ${(pendentesParceiros * 20).toFixed(2).replace('.', ',')}`;
+
             if(document.getElementById('kpiAtivos')) document.getElementById('kpiAtivos').innerText = ativos;
             if(document.getElementById('kpiInativos')) document.getElementById('kpiInativos').innerText = inativos;
             if(document.getElementById('kpiAdesao')) document.getElementById('kpiAdesao').innerText = totalAlunos > 0 ? `${Math.round((ativos/totalAlunos)*100)}%` : '0%';
@@ -645,13 +977,21 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
             window.renderRankingAlunosAdm();
+            window.renderRankingEquipeAdm();
+            window.renderParceirosListaPaginado();
             window.renderGestaoLotesPaginado();
+            window.renderPendentesAdminPaginado();
             window.renderLogsPaginado();
             window.renderLivroCaixaPaginado();
 
             const tabelaRankingEducadoresADM = document.getElementById('tabelaRankingEducadoresADM');
             if(tabelaRankingEducadoresADM) {
-                let rankingProf = [...window.mockEducadoresBD].sort((a, b) => b.lotesVendidos - a.lotesVendidos);
+                const nomesExcluidos = ['jhersyka', 'debora', 'bruna'];
+                let rankingProf = [...window.mockEducadoresBD].filter(e => {
+                    let nomeLimpo = e.nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+                    return !nomesExcluidos.includes(nomeLimpo);
+                }).sort((a, b) => b.lotesVendidos - a.lotesVendidos);
+
                 const startIdx = (window.pages.rankProfAdm.current - 1) * 10;
                 const paginated = rankingProf.slice(startIdx, startIdx + 10);
 
@@ -668,6 +1008,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 let htmlSede = '';
                 let lotesEmUso = [];
                 window.todosEducandosBD.forEach(a => { lotesEmUso.push(...a.lotesPendentes); lotesEmUso.push(...a.lotesVendidos); });
+                window.todosParceirosBD.forEach(p => { lotesEmUso.push(...p.lotesPendentes); lotesEmUso.push(...p.lotesVendidos); });
 
                 window.lotesSedeBD.forEach(l => {
                     const respInfo = l.educador ? ` (Com ${l.educador})` : ' (Na Sede)';
@@ -678,6 +1019,62 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 });
                 listaSede.innerHTML = htmlSede || '<div style="padding: 15px; color:#a0a0a0; text-align:center;">Nenhum lote na base.</div>';
+            }
+
+            const listaLotesParceiros = document.getElementById("listaLotesParceirosCheckboxes");
+            if(listaLotesParceiros) {
+                let htmlLotes = '';
+                let lotesEmUso = [];
+                window.todosParceirosBD.forEach(p => { lotesEmUso.push(...p.lotesPendentes); lotesEmUso.push(...p.lotesVendidos); });
+                window.todosEducandosBD.forEach(a => { lotesEmUso.push(...a.lotesPendentes); lotesEmUso.push(...a.lotesVendidos); }); 
+                const lotesFiltrados = window.lotesSedeBD.filter(l => l.codigo.toUpperCase().includes('PARC'));
+                lotesFiltrados.forEach(l => {
+                    if(lotesEmUso.includes(l.codigo)) {
+                        htmlLotes += `<label class="checkbox-item-row" style="opacity: 0.5;"><input type="checkbox" class="roxo-checkbox" disabled> <span style="text-decoration: line-through;">${l.codigo}</span> <span style="margin-left:auto; font-size:0.8rem; color:#a0a0a0;">Em uso</span></label>`;
+                    } else {
+                        htmlLotes += `<label class="checkbox-item-row"><input type="checkbox" class="roxo-checkbox" value="${l.codigo}"> <span>${l.codigo}</span></label>`;
+                    }
+                });
+                listaLotesParceiros.innerHTML = htmlLotes || '<div style="padding:15px; text-align:center; color:#a0a0a0;">Nenhum lote PARC livre na Sede.</div>';
+            }
+
+            const selectParceiroAttr = document.getElementById("opcoesParceiroAtribuir");
+            const wrapParcAttr = document.getElementById("wrapperParceiroAtribuir");
+            if(selectParceiroAttr && wrapParcAttr) {
+                let opts = searchBox;
+                if(window.todosParceirosBD.length === 0) opts += '<span class="custom-option" data-value="">Nenhum parceiro cadastrado.</span>';
+                else window.todosParceirosBD.forEach(p => { opts += `<span class="custom-option" data-value="${p.nome}">${p.nome}</span>`; });
+                selectParceiroAttr.innerHTML = opts;
+                ativarEventosSelectCustomizado(wrapParcAttr);
+            }
+
+            const listaLotesEquipe = document.getElementById("listaLotesEquipeCheckboxes");
+            if(listaLotesEquipe) {
+                let htmlLotesEquipe = '';
+                let lotesEmUsoEquipe = [];
+                window.todosEducandosBD.forEach(a => { lotesEmUsoEquipe.push(...a.lotesPendentes); lotesEmUsoEquipe.push(...a.lotesVendidos); });
+                window.todosParceirosBD.forEach(p => { lotesEmUsoEquipe.push(...p.lotesPendentes); lotesEmUsoEquipe.push(...p.lotesVendidos); });
+
+                const lotesEquipeFiltrados = window.lotesSedeBD.filter(l => l.codigo.toUpperCase().includes('EQU'));
+                lotesEquipeFiltrados.forEach(l => {
+                    if(lotesEmUsoEquipe.includes(l.codigo)) {
+                        htmlLotesEquipe += `<label class="checkbox-item-row" style="opacity: 0.5;"><input type="checkbox" class="roxo-checkbox" disabled> <span style="text-decoration: line-through;">${l.codigo}</span> <span style="margin-left:auto; font-size:0.8rem; color:#a0a0a0;">Em uso</span></label>`;
+                    } else {
+                        htmlLotesEquipe += `<label class="checkbox-item-row"><input type="checkbox" class="roxo-checkbox" value="${l.codigo}"> <span>${l.codigo}</span></label>`;
+                    }
+                });
+                listaLotesEquipe.innerHTML = htmlLotesEquipe || '<div style="padding:15px; text-align:center; color:#a0a0a0;">Nenhum lote EQU vago na Sede.</div>';
+            }
+
+            const selectEquipeAttr = document.getElementById("opcoesEquipeAtribuir");
+            const wrapEquipeAttr = document.getElementById("wrapperEquipeAtribuir");
+            if(selectEquipeAttr && wrapEquipeAttr) {
+                let optsEquipe = searchBox;
+                let equipeDB = window.todosEducandosBD.filter(a => a.turma === 'Equipe');
+                if(equipeDB.length === 0) optsEquipe += '<span class="custom-option" data-value="">Nenhum colaborador cadastrado.</span>';
+                else equipeDB.forEach(c => { optsEquipe += `<span class="custom-option" data-value="${c.nome}">${c.nome}</span>`; });
+                selectEquipeAttr.innerHTML = optsEquipe;
+                ativarEventosSelectCustomizado(wrapEquipeAttr);
             }
 
             const opcoesEducador = document.getElementById("opcoesEducadorDestino");
@@ -714,10 +1111,117 @@ document.addEventListener("DOMContentLoaded", () => {
                 .catch(err => { console.error(err); btn.disabled = false; });
             });
         }
+        
+        const formCadastrarParceiro = document.getElementById("formCadastrarParceiro");
+        if(formCadastrarParceiro) {
+            formCadastrarParceiro.addEventListener("submit", (e) => {
+                e.preventDefault();
+                const btn = formCadastrarParceiro.querySelector("button[type='submit']");
+                btn.innerText = "Salvando..."; btn.disabled = true;
+                const nome = document.getElementById("nomeParceiroInput").value;
+                
+                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'cadastrar_parceiro', nome, cartela: "" })
+                }).then(res => res.json()).then(data => {
+                    btn.innerText = "Salvar Parceiro"; btn.disabled = false;
+                    if(data.success) {
+                        window.registrarLog("Cadastro Parceiro", `Cadastrou parceiro comercial ${nome}`);
+                        fecharModal('modalCadastrarParceiro'); formCadastrarParceiro.reset();
+                        window.abrirModalSucesso(data.message); window.carregarDadosDoBanco();
+                    } else window.abrirModalErro(data.message);
+                }).catch(() => { btn.disabled = false; btn.innerText = "Salvar Parceiro"; });
+            });
+        }
+
+        const formAtribuirLoteParceiro = document.getElementById("formAtribuirLoteParceiro");
+        if(formAtribuirLoteParceiro) {
+            formAtribuirLoteParceiro.addEventListener("submit", (e) => {
+                e.preventDefault();
+                const nomeInput = document.getElementById("parceiroAtribuirSelect").value;
+                const checkboxesMarcados = document.querySelectorAll('#listaLotesParceirosCheckboxes input[type="checkbox"]:checked');
+                const lotesArray = Array.from(checkboxesMarcados).map(cb => cb.value);
+
+                if(!nomeInput || lotesArray.length === 0) return window.abrirModalErro("Selecione o parceiro e marque pelo menos um lote PARC.");
+                const btn = formAtribuirLoteParceiro.querySelector("button[type='submit']");
+                btn.innerText = "Atribuindo..."; btn.disabled = true;
+
+                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'atribuir_lote_parceiro', nome: nomeInput, lotes: lotesArray, responsavel: userName }) })
+                .then(res => res.json()).then(data => {
+                    btn.innerText = "Confirmar Atribuição"; btn.disabled = false;
+                    if(data.success) {
+                        window.registrarLog("Atribuição Parceiro", `Atribuiu lotes ${lotesArray.join(', ')} para o parceiro ${nomeInput}`);
+                        fecharModal('modalAtribuirLoteParceiro'); formAtribuirLoteParceiro.reset(); 
+                        window.abrirModalSucesso("Lotes PARC atribuídos com sucesso!"); window.carregarDadosDoBanco(); 
+                    } else window.abrirModalErro(data.message);
+                }).catch(() => { btn.disabled = false; btn.innerText = "Confirmar Atribuição"; });
+            });
+        }
+
+        const formCadastrarColaborador = document.getElementById("formCadastrarColaborador");
+        if(formCadastrarColaborador) {
+            formCadastrarColaborador.addEventListener("submit", (e) => {
+                e.preventDefault();
+                const btn = formCadastrarColaborador.querySelector("button[type='submit']");
+                btn.innerText = "Enviando para Nuvem..."; btn.disabled = true;
+                const nome = document.getElementById("nomeColaboradorInput").value;
+
+                if(window.fotoFileGlobal && window.tipoCadastroFoto === 'colaborador') {
+                    const formData = new FormData(); 
+                    formData.append('file', window.fotoFileGlobal); 
+                    formData.append('upload_preset', CLOUDINARY_PRESET);
+                    
+                    fetch(CLOUDINARY_URL, { method: 'POST', body: formData })
+                    .then(r => r.json()).then(dataImg => {
+                        if(dataImg.secure_url) { salvarColaboradorBanco(nome, dataImg.secure_url, btn); } 
+                        else { window.abrirModalErro("Falha na imagem"); btn.innerText = "Salvar Colaborador"; btn.disabled = false; }
+                    }).catch(() => { window.abrirModalErro("Erro de rede."); btn.innerText = "Salvar Colaborador"; btn.disabled = false; });
+                } else { salvarColaboradorBanco(nome, "", btn); }
+            });
+        }
+
+        function salvarColaboradorBanco(nome, fotoUrl, btn) {
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'cadastrar_colaborador_vendedor', nome: nome, cargo: 'Colaborador', fotoUrl: fotoUrl })
+            }).then(res => res.json()).then(data => {
+                btn.innerText = "Salvar Colaborador"; btn.disabled = false;
+                if(data.success) {
+                    window.registrarLog("Cadastro Colaborador", `Cadastrou o colaborador de vendas diretas ${nome}`);
+                    fecharModal('modalCadastrarColaborador'); 
+                    const form = document.getElementById("formCadastrarColaborador");
+                    if(form) form.reset();
+                    window.fotoFileGlobal = null; 
+                    if(document.getElementById('previewFotoColaborador')) document.getElementById('previewFotoColaborador').style.display = 'none'; 
+                    if(document.getElementById('iconCameraColaborador')) document.getElementById('iconCameraColaborador').style.display = 'block';
+                    window.abrirModalSucesso(data.message); window.carregarDadosDoBanco();
+                } else { window.abrirModalErro(data.message); }
+            }).catch(() => { btn.disabled = false; window.abrirModalErro("Erro de rede."); });
+        }
+
+        const formAtribuirLoteEquipe = document.getElementById("formAtribuirLoteEquipe");
+        if(formAtribuirLoteEquipe) {
+            formAtribuirLoteEquipe.addEventListener("submit", (e) => {
+                e.preventDefault();
+                const nomeInput = document.getElementById("equipeAtribuirSelect").value;
+                const checkboxesMarcados = document.querySelectorAll('#listaLotesEquipeCheckboxes input[type="checkbox"]:checked');
+                const lotesArray = Array.from(checkboxesMarcados).map(cb => cb.value);
+
+                if(!nomeInput || lotesArray.length === 0) return window.abrirModalErro("Selecione o colaborador e marque pelo menos um lote EQU.");
+                const btn = formAtribuirLoteEquipe.querySelector("button[type='submit']");
+                btn.innerText = "Atribuindo..."; btn.disabled = true;
+
+                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'atribuir_lote', nomeAluno: nomeInput, lotes: lotesArray, tipoPessoa: 'Equipe', responsavel: userName }) })
+                .then(res => res.json()).then(data => {
+                    btn.innerText = "Confirmar Atribuição"; btn.disabled = false;
+                    if(data.success) {
+                        window.registrarLog("Atribuição Equipe", `Atribuiu lotes ${lotesArray.join(', ')} para o colaborador ${nomeInput}`);
+                        fecharModal('modalAtribuirLoteEquipe'); formAtribuirLoteEquipe.reset(); 
+                        window.abrirModalSucesso("Lotes EQU atribuídos com sucesso!"); window.carregarDadosDoBanco(); 
+                    } else window.abrirModalErro(data.message);
+                }).catch(() => { btn.disabled = false; window.abrirModalErro("Erro de rede."); });
+            });
+        }
     }
 
     // ==========================================
-    // MODAIS E TRAVA DE TRANSAÇÕES
+    // MODAIS E DISPARO DE TRANSAÇÕES UNIFICADAS
     // ==========================================
     window.abrirModal = function(id) { document.getElementById(id).classList.add('active'); }
     window.fecharModal = function(id) { document.getElementById(id).classList.remove('active'); }
@@ -725,20 +1229,28 @@ document.addEventListener("DOMContentLoaded", () => {
     window.abrirModalErro = function(txt) { const pErro = document.getElementById('textoModalErro'); if(pErro) pErro.innerText = txt; abrirModal('modalErro'); }
     window.toggleMisto = function(mostrar) { document.getElementById('camposMisto').style.display = mostrar ? 'flex' : 'none'; }
 
-    window.abrirDetalhesAluno = function(idx) {
+    window.abrirDetalhesAluno = function(idx, tipo = 'Educando') {
         window.alunoEmFocoIdx = idx; 
+        window.tipoPessoaEmFoco = tipo;
         const isAdmin = document.getElementById('adminPage') !== null;
-        const aluno = window.todosEducandosBD[idx]; 
         
-        const elFoto = document.getElementById('detalheFoto'); if(elFoto) elFoto.src = aluno.foto;
-        const elNome = document.getElementById('detalheNome'); if(elNome) elNome.innerText = aluno.nome;
-        const elTurma = document.getElementById('detalheTurma'); if(elTurma) elTurma.innerText = `${aluno.curso} - ${aluno.turma}`;
+        const pessoa = (tipo === 'Parceiro') ? window.todosParceirosBD[idx] : window.todosEducandosBD[idx]; 
         
-        const recompensas = calcularRecompensas(aluno.lotesVendidos.length);
+        const elFoto = document.getElementById('detalheFoto'); if(elFoto) elFoto.src = pessoa.foto;
+        const elNome = document.getElementById('detalheNome'); if(elNome) elNome.innerText = pessoa.nome;
+        
+        const elTurma = document.getElementById('detalheTurma'); 
+        if(elTurma) {
+            if (tipo === 'Parceiro') elTurma.innerText = `Comércio - Parceiro`;
+            else if (pessoa.turma === 'Equipe') elTurma.innerText = `Vendas Diretas - Equipe`;
+            else elTurma.innerText = `${pessoa.curso} - ${pessoa.turma}`;
+        }
+        
+        const recompensas = calcularRecompensas(pessoa.lotesVendidos.length);
         const elFone = document.getElementById('detalheFone'); if(elFone) elFone.innerText = recompensas.fone;
         const elCartelas = document.getElementById('detalheCartelasGanhas'); if(elCartelas) elCartelas.innerText = recompensas.cartelas;
         
-        let pendentesEntrega = recompensas.cartelas - aluno.cartelasEntregues;
+        let pendentesEntrega = recompensas.cartelas - (pessoa.cartelasEntregues || 0);
         const boxRetirar = document.getElementById('boxRetirarCartela');
         if (boxRetirar) {
             if (pendentesEntrega > 0 && !isAdmin) { 
@@ -748,25 +1260,25 @@ document.addEventListener("DOMContentLoaded", () => {
             } else { boxRetirar.style.display = 'none'; }
         }
 
-        const elVendidos = document.getElementById('detalheQtdVendidos'); if(elVendidos) elVendidos.innerText = aluno.lotesVendidos.length;
-        const elPendentes = document.getElementById('detalheQtdPendentes'); if(elPendentes) elPendentes.innerText = aluno.lotesPendentes.length;
-        const elDevolvidos = document.getElementById('detalheQtdDevolvidos'); if(elDevolvidos) elDevolvidos.innerText = aluno.lotesDevolvidos ? aluno.lotesDevolvidos.length : 0;
+        const elVendidos = document.getElementById('detalheQtdVendidos'); if(elVendidos) elVendidos.innerText = pessoa.lotesVendidos.length;
+        const elPendentes = document.getElementById('detalheQtdPendentes'); if(elPendentes) elPendentes.innerText = pessoa.lotesPendentes.length;
+        const elDevolvidos = document.getElementById('detalheQtdDevolvidos'); if(elDevolvidos) elDevolvidos.innerText = pessoa.lotesDevolvidos ? pessoa.lotesDevolvidos.length : 0;
         
-        const badgeVendidos = aluno.lotesVendidos.length ? aluno.lotesVendidos.map(l => `<span class="badge-lote">${l}</span>`).join('') : '<span class="badge-lote vazio">Nenhum</span>';
+        const badgeVendidos = pessoa.lotesVendidos.length ? pessoa.lotesVendidos.map(l => `<span class="badge-lote">${l}</span>`).join('') : '<span class="badge-lote vazio">Nenhum</span>';
         let badgePendentes = '<span class="badge-lote vazio">Nenhum</span>';
-        if(aluno.lotesPendentes.length) {
+        if(pessoa.lotesPendentes.length) {
             if(isAdmin) {
                 const cliquePend = document.getElementById('msgCliquePendente'); if(cliquePend) cliquePend.style.display = 'block';
-                badgePendentes = aluno.lotesPendentes.map(l => `<span class="badge-lote" style="border: 1px dashed var(--sunflower-gold); cursor:pointer;" title="Gerenciar Lote" onclick="abrirAcaoLote('${l}', ${idx}); event.stopPropagation();">${l} ⚙️</span>`).join('');
+                badgePendentes = pessoa.lotesPendentes.map(l => `<span class="badge-lote" style="border: 1px dashed var(--sunflower-gold); cursor:pointer;" title="Gerenciar Lote" onclick="abrirAcaoLote('${l}', ${idx}, '${tipo}'); event.stopPropagation();">${l} ⚙️</span>`).join('');
             } else {
                 const cliquePend = document.getElementById('msgCliquePendente'); if(cliquePend) cliquePend.style.display = 'none';
-                badgePendentes = aluno.lotesPendentes.map(l => `<span class="badge-lote">${l}</span>`).join('');
+                badgePendentes = pessoa.lotesPendentes.map(l => `<span class="badge-lote">${l}</span>`).join('');
             }
         } else {
             const cliquePend = document.getElementById('msgCliquePendente'); if(cliquePend) cliquePend.style.display = 'none';
         }
         
-        const badgeDevolvidos = aluno.lotesDevolvidos && aluno.lotesDevolvidos.length ? aluno.lotesDevolvidos.map(l => `<span class="badge-lote">${l}</span>`).join('') : '<span class="badge-lote vazio">Nenhum</span>';
+        const badgeDevolvidos = pessoa.lotesDevolvidos && pessoa.lotesDevolvidos.length ? pessoa.lotesDevolvidos.map(l => `<span class="badge-lote">${l}</span>`).join('') : '<span class="badge-lote vazio">Nenhum</span>';
         
         const bV = document.getElementById('detalheBadgesVendidos'); if(bV) bV.innerHTML = badgeVendidos;
         const bP = document.getElementById('detalheBadgesPendentes'); if(bP) bP.innerHTML = badgePendentes;
@@ -783,16 +1295,16 @@ document.addEventListener("DOMContentLoaded", () => {
         fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'entregar_cartela', nomeAluno: aluno.nome }) }).catch(err => console.error(err));
     }
 
-    window.abrirAcaoLote = function(lote, idxAluno) {
+    window.abrirAcaoLote = function(lote, idxAluno, tipo = 'Educando') {
         if(window.lotesValidadosNestaSessao.has(lote)) {
             return window.abrirModalErro("Esse Lote já está faturado ou processado!");
         }
-
-        const aluno = window.todosEducandosBD[idxAluno];
+        const pessoa = (tipo === 'Parceiro') ? window.todosParceirosBD[idxAluno] : window.todosEducandosBD[idxAluno];
         document.getElementById('acaoLoteNome').innerText = lote;
-        document.getElementById('acaoLoteAluno').innerText = aluno.nome;
+        document.getElementById('acaoLoteAluno').innerText = pessoa.nome;
         document.getElementById('acaoLoteInput').value = lote;
         document.getElementById('acaoAlunoIdxInput').value = idxAluno;
+        document.getElementById('modalAcaoLote').setAttribute('data-tipo', tipo);
         
         const radioPix = document.querySelector('input[name="formaPagamentoLote"][value="PIX"]');
         if(radioPix) radioPix.checked = true;
@@ -804,7 +1316,8 @@ document.addEventListener("DOMContentLoaded", () => {
     window.confirmarVendaLote = function() {
         const lote = document.getElementById('acaoLoteInput').value;
         const idx = document.getElementById('acaoAlunoIdxInput').value;
-        const aluno = window.todosEducandosBD[idx];
+        const tipo = document.getElementById('modalAcaoLote').getAttribute('data-tipo') || 'Educando';
+        const pessoa = (tipo === 'Parceiro') ? window.todosParceirosBD[idx] : window.todosEducandosBD[idx];
         const formaPagamento = document.querySelector('input[name="formaPagamentoLote"]:checked').value;
         let vPix = 0, vDin = 0;
 
@@ -822,24 +1335,31 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         window.lotesValidadosNestaSessao.add(lote); 
         
+        // INJEÇÃO LOCAL NO LIVRO CAIXA EM TEMPO REAL
+        const idTxAtual = "TX-" + new Date().getTime();
+        const dataHoraAtual = new Date().toLocaleString('pt-BR');
+        if (vPix > 0) window.caixaGlobalBD.push({ 'Data_Hora': dataHoraAtual, 'ID_Transacao': idTxAtual, 'Lote': lote, 'Educando': pessoa.nome, 'Valor': vPix, 'Metodo_Pagamento': 'PIX', 'Responsavel': userName, 'Categoria': tipo });
+        if (vDin > 0) window.caixaGlobalBD.push({ 'Data_Hora': dataHoraAtual, 'ID_Transacao': idTxAtual, 'Lote': lote, 'Educando': pessoa.nome, 'Valor': vDin, 'Metodo_Pagamento': 'Dinheiro', 'Responsavel': userName, 'Categoria': tipo });
+
         window.caixaGlobal.pixReais += vPix; window.caixaGlobal.dinReais += vDin;
-        aluno.lotesPendentes = aluno.lotesPendentes.filter(l => l !== lote);
-        aluno.lotesVendidos.push(lote);
+        pessoa.lotesPendentes = pessoa.lotesPendentes.filter(l => l !== lote);
+        pessoa.lotesVendidos.push(lote);
         
         fecharModal('modalAcaoLote'); window.abrirModalSucesso("Venda confirmada!"); 
-        window.registrarLog("Validação Venda", `Lote ${lote} validado para ${aluno.nome}. Pagamento: R$ ${vPix+vDin} via ${formaPagamento}`);
+        window.registrarLog("Validação Venda", `Lote ${lote} validado para ${pessoa.nome} (${tipo}). Pagamento: R$ ${vPix+vDin} via ${formaPagamento}`);
         if(document.getElementById("adminPage")) window.atualizarDashboardsADM(); 
         if(document.getElementById("educadorPage")) window.atualizarDashboardEducador();
 
         fetch(SCRIPT_URL, {
-            method: 'POST', body: JSON.stringify({ action: 'transacao_lote', acaoLote: 'venda', lote: lote, nomeAluno: aluno.nome, vPix: vPix, vDin: vDin, responsavel: userName })
+            method: 'POST', body: JSON.stringify({ action: 'transacao_lote', acaoLote: 'venda', lote: lote, nome: pessoa.nome, nomeAluno: pessoa.nome, tipoPessoa: tipo, vPix: vPix, vDin: vDin, responsavel: userName })
         }).catch(err => console.error("Erro", err));
     }
 
     window.confirmarDevolucaoLote = function() {
         const lote = document.getElementById('acaoLoteInput').value;
         const idx = document.getElementById('acaoAlunoIdxInput').value;
-        const aluno = window.todosEducandosBD[idx];
+        const tipo = document.getElementById('modalAcaoLote').getAttribute('data-tipo') || 'Educando';
+        const pessoa = (tipo === 'Parceiro') ? window.todosParceirosBD[idx] : window.todosEducandosBD[idx];
         
         if(window.lotesValidadosNestaSessao.has(lote)) {
             fecharModal('modalAcaoLote');
@@ -847,17 +1367,17 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         window.lotesValidadosNestaSessao.add(lote);
 
-        aluno.lotesPendentes = aluno.lotesPendentes.filter(l => l !== lote);
-        if(!aluno.lotesDevolvidos) aluno.lotesDevolvidos = [];
-        aluno.lotesDevolvidos.push(lote);
+        pessoa.lotesPendentes = pessoa.lotesPendentes.filter(l => l !== lote);
+        if(!pessoa.lotesDevolvidos) pessoa.lotesDevolvidos = [];
+        pessoa.lotesDevolvidos.push(lote);
         
         fecharModal('modalAcaoLote'); window.abrirModalSucesso("Lote devolvido com sucesso!"); 
-        window.registrarLog("Devolução Lote", `Lote ${lote} devolvido pelo aluno ${aluno.nome}`);
+        window.registrarLog("Devolução Lote", `Lote ${lote} devolvido por ${pessoa.nome} (${tipo})`);
         if(document.getElementById("adminPage")) window.atualizarDashboardsADM();
         if(document.getElementById("educadorPage")) window.atualizarDashboardEducador();
 
         fetch(SCRIPT_URL, {
-            method: 'POST', body: JSON.stringify({ action: 'transacao_lote', acaoLote: 'devolucao', lote: lote, nomeAluno: aluno.nome, responsavel: userName })
+            method: 'POST', body: JSON.stringify({ action: 'transacao_lote', acaoLote: 'devolucao', lote: lote, nome: pessoa.nome, nomeAluno: pessoa.nome, tipoPessoa: tipo, responsavel: userName })
         }).catch(err => console.error("Erro", err));
     }
 
