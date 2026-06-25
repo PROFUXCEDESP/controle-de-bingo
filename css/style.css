@@ -1881,3 +1881,95 @@ button:disabled,
         grid-template-columns: 1fr;
     }
 }
+
+/* =========================================================
+   AJUSTES V15 — LOTES DISPONÍVEIS + MODAL CLEAN ADM
+   ========================================================= */
+.estoque-filter-panel-v15 {
+    display: grid !important;
+    grid-template-columns: minmax(240px, 330px) minmax(280px, 1fr) !important;
+    gap: 1rem !important;
+    align-items: end !important;
+    margin-bottom: 1.1rem !important;
+}
+
+.estoque-filter-panel-v15 .estoque-select-wrap,
+.estoque-filter-panel-v15 .estoque-search-wrap {
+    margin-bottom: 0 !important;
+}
+
+.estoque-filter-panel-v15 .custom-select-trigger {
+    min-height: 52px;
+    border: 1.5px solid var(--petal-pink);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(188, 104, 161, 0.08);
+}
+
+.estoque-filter-panel-v15 .custom-select.open .custom-select-trigger {
+    border-color: var(--petal-pink);
+    box-shadow: 0 0 0 3px rgba(188, 104, 161, 0.18);
+}
+
+.estoque-filter-panel-v15 .custom-options {
+    border: 1px solid var(--petal-pink);
+    border-radius: 0 0 10px 10px;
+    overflow: hidden;
+}
+
+.estoque-filter-panel-v15 .custom-option.selected,
+.estoque-filter-panel-v15 .custom-option:hover {
+    background: var(--petal-pink);
+    color: #fff;
+}
+
+#modalAcaoLote .modal-confirmacao-lote-body {
+    text-align: center !important;
+}
+
+#modalAcaoLote .acao-lote-clean-title {
+    color: var(--petal-pink) !important;
+    font-size: 1.55rem !important;
+    font-weight: 900 !important;
+    margin: 0 0 0.45rem !important;
+}
+
+#modalAcaoLote .pagamento-clean-options {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 1rem !important;
+}
+
+#modalAcaoLote .pagamento-clean-option {
+    color: var(--dim-grey) !important;
+    font-weight: 800 !important;
+}
+
+#modalAcaoLote .btn-clean-devolver,
+#modalAcaoLote .btn-clean-confirmar {
+    min-height: 58px !important;
+    border: none !important;
+    border-radius: 12px !important;
+    color: #fff !important;
+    font-size: 1.1rem !important;
+    font-weight: 900 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: none !important;
+}
+
+#modalAcaoLote .btn-clean-devolver {
+    background: var(--sunflower-gold) !important;
+}
+
+#modalAcaoLote .btn-clean-confirmar {
+    background: var(--burnt-peach) !important;
+}
+
+@media (max-width: 760px) {
+    .estoque-filter-panel-v15 {
+        grid-template-columns: 1fr !important;
+    }
+}

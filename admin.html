@@ -168,27 +168,24 @@
                         <div class="kpi-card"><div class="kpi-title">Separados VD</div><div class="kpi-value" style="color: var(--dim-grey);" id="kpiEstoqueSeparadosVD">0</div></div>
                     </div>
 
-                    <div class="validator-card estoque-resumo-card" style="margin-bottom: 1.5rem;">
-                        <div class="estoque-resumo-header">
-                            <div>
-                                <h3 class="estoque-resumo-title">Lotes em mãos por educador</h3>
-                                <p class="section-helper-text" style="margin: 0;">Resumo dos responsáveis que estão com lotes disponíveis para conferência ou Venda Direta.</p>
-                            </div>
-                            <span class="estoque-resumo-total" id="totalEducadoresComLotes">0 educador(es)</span>
-                        </div>
-                        <div class="table-container" style="overflow-x: auto; width: 100%; margin-top: 1rem;">
-                            <table class="data-table estoque-resumo-table" style="width: 100%; min-width: 680px;">
-                                <thead><tr><th>Educador Responsável</th><th class="text-center">Lotes em mãos</th><th class="text-center">Devolvidos</th><th class="text-center">Venda Direta</th></tr></thead>
-                                <tbody id="tabelaResumoEstoqueEducadores"></tbody>
-                            </table>
-                        </div>
-                    </div>
-
                     <div class="validator-card estoque-lotes-card">
-                        <div class="estoque-filter-panel">
+                        <div class="estoque-filter-panel estoque-filter-panel-v15">
+                            <div class="estoque-select-wrap">
+                                <label>Educador responsável</label>
+                                <div class="custom-select-wrapper" id="wrapperFiltroEducadorEstoqueLotes">
+                                    <div class="custom-select">
+                                        <div class="custom-select-trigger">
+                                            <span class="trigger-text">Todos os educadores</span>
+                                            <span class="material-symbols-outlined arrow-icon">expand_more</span>
+                                        </div>
+                                        <div class="custom-options" id="opcoesFiltroEducadorEstoqueLotes"></div>
+                                    </div>
+                                    <input type="hidden" id="filtroEducadorEstoqueLotes" value="">
+                                </div>
+                            </div>
                             <div class="estoque-search-wrap">
                                 <span class="material-symbols-outlined">search</span>
-                                <input type="text" id="buscaEstoqueLotes" class="purple-input" placeholder="Pesquisar por lote, origem, educador responsável, curso ou turma..." autocomplete="off">
+                                <input type="text" id="buscaEstoqueLotes" class="purple-input" placeholder="Pesquisar por lote, origem, responsável, curso ou turma..." autocomplete="off">
                             </div>
                         </div>
                         <div class="table-container" style="overflow-x: auto; width: 100%;">
@@ -614,6 +611,6 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=20260625-14"></script>
+    <script src="js/app.js?v=20260625-15"></script>
 </body>
 </html>
