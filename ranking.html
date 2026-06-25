@@ -1,1507 +1,207 @@
-document.addEventListener("DOMContentLoaded", () => {
-    
-    function textoIgual(t1, t2) {
-        if(!t1 || !t2) return false;
-        return t1.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() === 
-               t2.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-    }
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking Oficial CEDESP</title>
+    <link rel="icon" href="assets/image/logo_cedesp.png" type="image/png">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0" />
+    <style>
+        body { background-color: #fcf9fc; padding-top: 2rem; padding-bottom: 3rem; }
+        .ranking-header { text-align: center; margin-bottom: 3rem; }
+        .ranking-header img { max-width: 250px; margin-bottom: 1rem; }
+        .ranking-header h1 { color: var(--petal-pink); font-size: 2.5rem; text-transform: uppercase; letter-spacing: 2px; }
+        .ranking-container { max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+        .ranking-section { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 10px 30px rgba(188, 104, 161, 0.1); margin-bottom: 3rem; }
+        .section-title { text-align: center; margin-bottom: 2rem; color: var(--dim-grey); font-size: 1.8rem; border: none; }
+        .purple-input { width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid #ccc; color: var(--dim-grey); font-size: 1rem; outline: none; transition: all 0.3s ease; }
+        .purple-input:focus { border-color: var(--petal-pink) !important; box-shadow: 0 0 0 3px rgba(188, 104, 161, 0.2) !important; }
+        .loader { text-align: center; font-size: 1.5rem; color: var(--petal-pink); font-weight: bold; margin: 3rem 0; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
 
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWD-pi7qf1Vlp01I8CO-7euJmqsNureruSEjeFc9bdYUZ_M13he6bqBC_ctJGHUpc4ow/exec'; 
-    const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dliu0ck6y/image/upload'; 
-    const CLOUDINARY_PRESET = 'bingo_2026';
-    
-    const userName = localStorage.getItem('usuarioLogado') || 'Administrador';
-    
-    window.fotoFileGlobal = null; 
-    let cropperInstancia = null;
-    window.alunoEmFocoIdx = null; 
-    window.modoEdicaoFoto = false; 
-    window.tipoCadastroFoto = 'aluno';
-    window.tipoPessoaEmFoco = 'Educando';
-    
-    window.lotesValidadosNestaSessao = new Set(); 
+        /* Paginação Discreta */
+        .discrete-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee; }
+        .btn-page-discrete { background: none; border: none; cursor: pointer; font-size: 1.5rem; color: var(--petal-pink); display: flex; align-items: center; transition: 0.2s; }
+        .btn-page-discrete:hover:not(:disabled) { transform: scale(1.1); }
+        .btn-page-discrete:disabled { color: #ccc; cursor: not-allowed; transform: none; }
+        .page-input-discrete { width: 40px; padding: 4px; text-align: center; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; color: var(--dim-grey); outline: none; }
+        .page-input-discrete:focus { border-color: var(--petal-pink); }
+    </style>
+</head>
+<body>
 
-    window.pages = {
-        rankAdm: { current: 1, term: "" },
-        gestaoLotes: { current: 1, term: "" },
-        pendentesAdm: { current: 1, term: "" },
-        pendentesEdu: { current: 1, term: "" },
-        logs: { current: 1 },
-        caixa: { current: 1 },
-        rankProfAdm: { current: 1 },
-        minhaTurma: { current: 1, term: "", turma: "Todas" },
-        rankEdu: { current: 1, term: "" },
-        rankProfEdu: { current: 1 },
-        rankEquipe: { current: 1 },
-        parceiros: { current: 1 }
-    };
+    <div class="ranking-header">
+        <img src="assets/image/logo_cedesp.png" alt="Logo CEDESP">
+        <h1>Ranking Oficial Bingo 2026</h1>
+    </div>
 
-    let estoqueChartInstEdu = null; let financeiroChartInstEdu = null;
-    let estoqueChartInstAdm = null; let financeiroChartInstAdm = null;
+    <div class="ranking-container">
+        <div id="loader" class="loader">Atualizando dados ao vivo...</div>
 
-    window.caixaGlobal = { pixReais: 0.00, dinReais: 0.00 };
-    window.caixaGlobalBD = []; 
-    window.todosEducandosBD = []; window.mockEducadoresBD = [];
-    window.todosParceirosBD = []; window.lotesSedeBD = []; window.logsDoSistema = [];
-    window.historicoLotesBD = [];
-
-    window.renderPaginationUI = function(containerId, key, totalItems, itemsPerPage, renderFunc) {
-        const container = document.getElementById(containerId);
-        if(!container) return;
-        const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
-        if(window.pages[key].current > totalPages) window.pages[key].current = totalPages;
-        if(window.pages[key].current < 1) window.pages[key].current = 1;
-
-        container.innerHTML = `
-            <div class="discrete-pagination">
-                <button class="btn-page-discrete" ${window.pages[key].current === 1 ? 'disabled' : ''} onclick="window.goPage('${key}', -1, '${renderFunc}')">&lt;</button>
-                <input type="number" class="page-input-discrete" value="${window.pages[key].current}" min="1" max="${totalPages}" onchange="window.jumpPage('${key}', this, '${renderFunc}')">
-                <span style="color:var(--dim-grey); font-size:0.9rem;">de ${totalPages}</span>
-                <button class="btn-page-discrete" ${window.pages[key].current === totalPages ? 'disabled' : ''} onclick="window.goPage('${key}', 1, '${renderFunc}')">&gt;</button>
-            </div>
-        `;
-    }
-
-    window.goPage = (key, dir, func) => { window.pages[key].current += dir; if(window[func]) window[func](); };
-    window.jumpPage = (key, input, func) => { 
-        let val = parseInt(input.value) || 1;
-        window.pages[key].current = val; 
-        if(window[func]) window[func](); 
-    };
-
-    window.registrarLog = function(acao, detalhe) {
-        const dataHora = new Date().toLocaleString('pt-BR');
-        const sessao = window.innerWidth <= 768 ? 'Mobile' : 'Desktop';
-        
-        window.logsDoSistema.push({ 'Data/Hora': dataHora, 'Responsavel': userName, 'Sessão_Dispositivo': sessao, 'Ação_Registrada': acao, 'Detalhes': detalhe });
-        if(document.getElementById('tabelaLogs') && window.renderLogsPaginado) window.renderLogsPaginado();
-        
-        fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'registrar_log', dataHora, responsavel: userName, sessao, acao, detalhe, localizacao: 'Sistema Web' }) }).catch(e => console.error("Erro log", e));
-    }
-
-    document.addEventListener('input', (e) => {
-        if(e.target.classList.contains('search-custom-select')) {
-            const term = e.target.value.toLowerCase();
-            const options = e.target.closest('.custom-options').querySelectorAll('.custom-option');
-            options.forEach(opt => {
-                if(opt.textContent.toLowerCase().includes(term)) opt.style.display = 'block';
-                else opt.style.display = 'none';
-            });
-        }
-    });
-
-    window.bindOptionClick = function(e) {
-        const option = e.currentTarget;
-        const wrapperNode = option.closest('.custom-select-wrapper');
-        if (!wrapperNode) return;
-        const select = wrapperNode.querySelector('.custom-select');
-        const triggerText = wrapperNode.querySelector('.trigger-text');
-        const hiddenInput = wrapperNode.querySelector('input[type="hidden"]');
-        triggerText.textContent = option.textContent;
-        hiddenInput.value = option.getAttribute('data-value');
-        wrapperNode.querySelectorAll('.custom-option').forEach(opt => opt.classList.remove('selected'));
-        option.classList.add('selected');
-        select.classList.remove('open');
-        triggerText.style.color = "var(--dim-grey)"; 
-        const searchInput = wrapperNode.querySelector('.search-custom-select');
-        if(searchInput) { searchInput.value = ''; wrapperNode.querySelectorAll('.custom-option').forEach(opt => opt.style.display = 'block'); }
-        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
-        e.stopPropagation();
-    }
-
-    function ativarEventosSelectCustomizado(wrapperNode) {
-        const options = wrapperNode.querySelectorAll('.custom-option');
-        options.forEach(option => { option.removeEventListener('click', window.bindOptionClick); option.addEventListener('click', window.bindOptionClick); });
-    }
-
-    const customSelectWrappers = document.querySelectorAll('.custom-select-wrapper');
-    customSelectWrappers.forEach(wrapper => {
-        const select = wrapper.querySelector('.custom-select');
-        const trigger = wrapper.querySelector('.custom-select-trigger');
-        if(trigger) {
-            trigger.addEventListener('click', (e) => {
-                document.querySelectorAll('.custom-select').forEach(s => { if (s !== select) s.classList.remove('open'); });
-                select.classList.toggle('open');
-                e.stopPropagation();
-            });
-            ativarEventosSelectCustomizado(wrapper);
-        }
-    });
-
-    window.addEventListener('click', () => { document.querySelectorAll('.custom-select').forEach(s => s.classList.remove('open')); });
-
-    window.mudarAbaEducador = function(secId, navId) {
-        const todasSecoes = document.querySelectorAll('main.admin-container > section');
-        todasSecoes.forEach(sec => sec.style.display = 'none');
-        const todosNavs = document.querySelectorAll('.sidebar-nav .nav-item');
-        todosNavs.forEach(nav => nav.classList.remove('active'));
-        const secClicada = document.getElementById(secId); if(secClicada) secClicada.style.display = 'block';
-        const navClicado = document.getElementById(navId); if(navClicado) navClicado.classList.add('active');
-        if(window.innerWidth <= 768) { const side = document.getElementById('sidebar'); if(side) side.classList.remove('open'); }
-        if(document.getElementById("educadorPage") && window.atualizarDashboardEducador) window.atualizarDashboardEducador();
-        if(document.getElementById("adminPage") && window.atualizarDashboardsADM) window.atualizarDashboardsADM();
-    }
-
-    const sidebar = document.getElementById('sidebar');
-    const openSidebarBtn = document.getElementById('openSidebar');
-    const closeSidebarBtn = document.getElementById('closeSidebar');
-    if(sidebar) {
-        if(openSidebarBtn) openSidebarBtn.addEventListener('click', () => sidebar.classList.add('open'));
-        if(closeSidebarBtn) closeSidebarBtn.addEventListener('click', () => sidebar.classList.remove('open'));
-    }
-
-    window.carregarDadosDoBanco = function(recarregarTelas = true) {
-        const btnSync = document.getElementById('nomeEducador');
-        if(btnSync) btnSync.innerText = "Sincronizando...";
-
-        fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'sincronizar_dados' }) })
-        .then(res => res.json())
-        .then(data => {
-            if(data.success) {
-                window.lotesSedeBD = data.lotesSede.map(l => ({ codigo: l['Codigo_Lote'] || l['ID do Lote'], educador: l['Responsavel_Atual'] || l['Educador_Destino'] || '' })).filter(l => l.codigo);
-
-                window.todosEducandosBD = data.educandos.map(e => ({
-                    nome: e['Nome_Educando'] || e['Nome'], curso: e['Curso'], turma: e['Turma'], periodo: e['Periodo'], 
-                    educadorResponsavel: e['Educador_Responsavel'] || '',
-                    cadastroAtivo: e['Cadastro_Ativo'] || '',
-                    foto: e['Foto_URL'] && String(e['Foto_URL']).trim() !== '' ? e['Foto_URL'] : `https://ui-avatars.com/api/?name=${encodeURIComponent(e['Nome_Educando'] || e['Nome'])}&background=BC68A1&color=fff`,
-                    lotesPendentes: e['Lotes_Pendentes'] ? String(e['Lotes_Pendentes']).split(',').map(s=>s.trim()).filter(Boolean) : [],
-                    lotesVendidos: e['Lotes_Vendidos'] ? String(e['Lotes_Vendidos']).split(',').map(s=>s.trim()).filter(Boolean) : [],
-                    lotesDevolvidos: e['Lotes_Devolvidos'] ? String(e['Lotes_Devolvidos']).split(',').map(s=>s.trim()).filter(Boolean) : [],
-                    cartelasEntregues: parseInt(e['Cartelas_Entregue']) || 0
-                }));
-
-                window.todosParceirosBD = (data.parceiros || []).map(p => ({
-                    nome: p['Nome'], cartela: p['Cartela_Retirada'] || '', turma: 'Parceiro', curso: 'Comércio/Apoiador',
-                    foto: `https://ui-avatars.com/api/?name=${encodeURIComponent(p['Nome'])}&background=4CAF50&color=fff`,
-                    lotesPendentes: p['Lotes_Pendentes'] ? String(p['Lotes_Pendentes']).split(',').map(s=>s.trim()).filter(Boolean) : [],
-                    lotesVendidos: p['Lotes_Vendidos'] ? String(p['Lotes_Vendidos']).split(',').map(s=>s.trim()).filter(Boolean) : [],
-                    lotesDevolvidos: []
-                }));
-
-                window.mockEducadoresBD = data.educadores.map(e => {
-                    let vendidos = 0; let pendentes = 0;
-                    window.todosEducandosBD.forEach(al => {
-                        if(textoIgual(al.educadorResponsavel, e['Nome'])) { 
-                            vendidos += al.lotesVendidos.length; 
-                            pendentes += al.lotesPendentes.length; 
-                        }
-                    });
-                    let retiradosSede = window.lotesSedeBD.filter(l => textoIgual(l.educador, e['Nome'])).length;
-                    return { nome: e['Nome'], curso: e['Curso Responsavel'], lotesRetiradosSede: retiradosSede, lotesVendidos: vendidos, lotesPendentes: pendentes };
-                });
-
-                window.caixaGlobal = { pixReais: 0, dinReais: 0 };
-                window.caixaGlobalBD = data.caixaGlobal || []; 
-                if (data.caixaGlobal) {
-                    data.caixaGlobal.forEach(transacao => {
-                        let valor = parseFloat(transacao['Valor']) || parseFloat(transacao['Valor_Total']) || parseFloat(transacao['Valor Recebido']) || 0;
-                        let m = String(transacao['Metodo_Pagamento'] || transacao['Método'] || transacao['Metodo'] || transacao['Forma_Pagamento'] || '').toUpperCase();
-                        if(m.includes('PIX')) window.caixaGlobal.pixReais += valor;
-                        if(m.includes('DINHEIRO') || m.includes('ESPECIE') || m.includes('MISTO')) window.caixaGlobal.dinReais += valor;
-                    });
-                }
-                
-                window.logsDoSistema = data.logs || [];
-                window.historicoLotesBD = (data.historicoLotes || []).map(h => ({
-                    dataRetirada: h['Data_Retirada'] || h['Data Retirada'] || h['Data/Hora'] || '',
-                    nome: h['Nome'] || '',
-                    tipo: h['Tipo'] || 'Educando',
-                    curso: h['Curso'] || '',
-                    turma: h['Turma'] || '',
-                    lote: h['Lote'] || '',
-                    atribuidoPor: h['Atribuido_Por'] || h['Atribuído Por'] || h['Quem_Atribuiu'] || '',
-                    status: h['Status'] || '',
-                    dataFinalizacao: h['Data_Finalizacao'] || '',
-                    finalizadoPor: h['Finalizado_Por'] || ''
-                }));
-
-                if(btnSync) btnSync.innerText = userName;
-                if (recarregarTelas) {
-                    if(document.getElementById("adminPage")) window.atualizarDashboardsADM();
-                    if(document.getElementById("educadorPage")) window.atualizarDashboardEducador();
-                }
-            }
-        }).catch(err => { console.error(err); if(btnSync) btnSync.innerText = "Erro de Conexão"; });
-    }
-
-    const loginForm = document.getElementById("loginForm");
-    if(loginForm) {
-        loginForm.addEventListener("submit", (e) => {
-            e.preventDefault(); 
-            const educadorInput = document.getElementById('educadorSelect') || document.querySelector('input[type="hidden"]');
-            const educador = educadorInput ? educadorInput.value : null;
-            const senha = document.getElementById("senhaInput").value;
-            if(!educador || senha.length !== 6) return window.abrirModalErro("Selecione seu nome e digite 6 números.");
-            const btn = document.querySelector(".btn-primary");
-            btn.innerText = "Conectando..."; btn.disabled = true;
-            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'login', educador: educador, senha: senha }) })
-            .then(res => res.json()).then(data => {
-                if (data.success) { 
-                    localStorage.setItem('usuarioLogado', educador);
-                    window.registrarLog("Login", "Acessou o sistema com sucesso.");
-                    window.location.href = (data.nivelAcesso === "ADM") ? "admin.html" : "educador.html"; 
-                } else { btn.innerText = "Acessar Sistema"; btn.disabled = false; window.abrirModalErro(data.message); }
-            }).catch(() => { btn.disabled = false; btn.innerText = "Acessar Sistema"; window.abrirModalErro("Erro de rede."); });
-        });
-    }
-
-    function calcularRecompensas(qtdVendidos) {
-        let fone = qtdVendidos >= 10 ? 1 : 0;
-        let cartelas = qtdVendidos >= 5 ? 1 + Math.floor((qtdVendidos - 5) / 5) : 0;
-        return { fone, cartelas };
-    }
-
-    function normalizarCodigoLote(valor) {
-        return String(valor || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
-    }
-
-    function escaparHTML(valor) {
-        return String(valor ?? '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
-    }
-
-    function escaparCSV(valor) {
-        const texto = String(valor ?? '').replace(/"/g, '""');
-        return `"${texto}"`;
-    }
-
-    function baixarCSVExcel(nomeArquivo, linhas) {
-        if (!linhas.length) return window.abrirModalErro("Não há pendências para exportar.");
-        const cabecalhos = ["Nome", "Curso", "Turma", "Lote pendente", "Data de retirada", "Quem atribuiu o lote"];
-        const csv = [cabecalhos, ...linhas.map(l => [l.nome, l.curso, l.turma, l.lote, l.dataRetirada, l.quemAtribuiu])]
-            .map(row => row.map(escaparCSV).join(';')).join('\n');
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = nomeArquivo;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    }
-
-    function encontrarHistoricoPendente(nome, lote, tipo = 'Educando') {
-        const loteNorm = normalizarCodigoLote(lote);
-        const nomeNorm = String(nome || '').trim().toLowerCase();
-        const tipoNorm = String(tipo || 'Educando').trim().toLowerCase();
-        return [...window.historicoLotesBD].reverse().find(h => {
-            return normalizarCodigoLote(h.lote) === loteNorm &&
-                   String(h.nome || '').trim().toLowerCase() === nomeNorm &&
-                   String(h.tipo || 'Educando').trim().toLowerCase() === tipoNorm &&
-                   String(h.status || '').trim().toLowerCase() === 'pendente';
-        });
-    }
-
-    function montarPendenciasLotes(escopo = 'admin') {
-        let base = window.todosEducandosBD.filter(pessoa => pessoa.turma !== 'Equipe' && pessoa.lotesPendentes.length > 0);
-        if (escopo === 'educador') base = base.filter(pessoa => textoIgual(pessoa.educadorResponsavel, userName));
-
-        return base.flatMap(pessoa => pessoa.lotesPendentes.map(lote => {
-            const hist = encontrarHistoricoPendente(pessoa.nome, lote, 'Educando');
-            return {
-                nome: pessoa.nome,
-                curso: pessoa.curso || '-',
-                turma: pessoa.turma || '-',
-                lote,
-                dataRetirada: hist?.dataRetirada || 'Anterior à atualização',
-                quemAtribuiu: hist?.atribuidoPor || pessoa.educadorResponsavel || 'Não registrado'
-            };
-        })).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-    }
-
-    function renderTabelaPendentes(containerId, pagId, pageKey, linhas, renderFunc) {
-        const tabela = document.getElementById(containerId);
-        if (!tabela) return;
-        const startIdx = (window.pages[pageKey].current - 1) * 10;
-        const paginated = linhas.slice(startIdx, startIdx + 10);
-        tabela.innerHTML = paginated.map(item => `
-            <tr>
-                <td><strong>${escaparHTML(item.nome)}</strong></td>
-                <td>${escaparHTML(item.curso)}</td>
-                <td>${escaparHTML(item.turma)}</td>
-                <td class="td-center"><span class="badge-lote badge-lote-pendente">${escaparHTML(item.lote)}</span></td>
-                <td>${escaparHTML(item.dataRetirada)}</td>
-                <td>${escaparHTML(item.quemAtribuiu)}</td>
-            </tr>
-        `).join('') || `<tr><td colspan="6" class="text-center" style="padding: 2rem; color:#a0a0a0;">Nenhum lote pendente encontrado.</td></tr>`;
-        renderPaginationUI(pagId, pageKey, linhas.length, 10, renderFunc);
-    }
-
-    window.renderPendentesAdminPaginado = function() {
-        let linhas = montarPendenciasLotes('admin');
-        if (window.pages.pendentesAdm.term) {
-            const term = window.pages.pendentesAdm.term.toLowerCase();
-            linhas = linhas.filter(item => `${item.nome} ${item.curso} ${item.turma} ${item.lote} ${item.quemAtribuiu}`.toLowerCase().includes(term));
-        }
-        const total = document.getElementById('totalPendentesADM');
-        if (total) total.innerText = linhas.length;
-        renderTabelaPendentes('tabelaPendentesADM', 'pagPendentesADM', 'pendentesAdm', linhas, 'renderPendentesAdminPaginado');
-    }
-
-    window.renderPendentesEducadorPaginado = function() {
-        let linhas = montarPendenciasLotes('educador');
-        if (window.pages.pendentesEdu.term) {
-            const term = window.pages.pendentesEdu.term.toLowerCase();
-            linhas = linhas.filter(item => `${item.nome} ${item.curso} ${item.turma} ${item.lote}`.toLowerCase().includes(term));
-        }
-        const total = document.getElementById('totalPendentesEducador');
-        if (total) total.innerText = linhas.length;
-        renderTabelaPendentes('tabelaPendentesEducador', 'pagPendentesEducador', 'pendentesEdu', linhas, 'renderPendentesEducadorPaginado');
-    }
-
-    window.exportarPendentesAdmin = function() {
-        const linhas = montarPendenciasLotes('admin');
-        if (!linhas.length) return baixarCSVExcel('', linhas);
-        const data = new Date().toISOString().slice(0, 10);
-        baixarCSVExcel(`pendentes_lotes_admin_${data}.csv`, linhas);
-        window.registrarLog("Exportação Pendentes", `Exportou ${linhas.length} lote(s) pendente(s) do painel administrativo.`);
-    }
-
-    window.exportarPendentesEducador = function() {
-        const linhas = montarPendenciasLotes('educador');
-        if (!linhas.length) return baixarCSVExcel('', linhas);
-        const data = new Date().toISOString().slice(0, 10);
-        baixarCSVExcel(`pendentes_lotes_${userName.replace(/\s+/g, '_')}_${data}.csv`, linhas);
-        window.registrarLog("Exportação Pendentes", `Exportou ${linhas.length} lote(s) pendente(s) do educador ${userName}.`);
-    }
-
-    function buscarCartelaNoSistema(codigoDigitado) {
-        const codigo = normalizarCodigoLote(codigoDigitado);
-        if (!codigo) return null;
-
-        const pessoas = [
-            ...window.todosEducandosBD.map(p => ({ ...p, tipo: p.turma === 'Equipe' ? 'Equipe' : 'Educando' })),
-            ...window.todosParceirosBD.map(p => ({ ...p, tipo: 'Parceiro' }))
-        ];
-
-        for (const pessoa of pessoas) {
-            if ((pessoa.lotesPendentes || []).some(l => normalizarCodigoLote(l) === codigo)) {
-                return { status: 'VETADA', tipoAlerta: 'danger', pessoa, lote: codigo, motivo: 'A cartela/lote ainda está como PENDENTE. Não consta venda confirmada nem devolução no sistema.' };
-            }
-            if ((pessoa.lotesVendidos || []).some(l => normalizarCodigoLote(l) === codigo)) {
-                return { status: 'VÁLIDA', tipoAlerta: 'success', pessoa, lote: codigo, motivo: 'Venda confirmada no sistema.' };
-            }
-            if ((pessoa.lotesDevolvidos || []).some(l => normalizarCodigoLote(l) === codigo)) {
-                return { status: 'NÃO VÁLIDA', tipoAlerta: 'warning', pessoa, lote: codigo, motivo: 'A cartela/lote foi devolvida e não deve ser considerada como venda ativa.' };
-            }
-        }
-
-        const loteSede = window.lotesSedeBD.find(l => normalizarCodigoLote(l.codigo) === codigo);
-        if (loteSede) return { status: 'NÃO VÁLIDA', tipoAlerta: 'warning', pessoa: null, lote: codigo, motivo: loteSede.educador ? `Lote está com ${loteSede.educador}, mas sem venda confirmada.` : 'Lote está na Sede, sem venda confirmada.' };
-        return { status: 'NÃO ENCONTRADA', tipoAlerta: 'danger', pessoa: null, lote: codigo, motivo: 'Não localizei essa cartela/lote nas bases carregadas. Confira a numeração antes de validar.' };
-    }
-
-    function montarDetalhesResultadoValidador(resultado) {
-        const pessoa = resultado.pessoa;
-        const detalhesPessoa = pessoa ? `
-            <div class="validador-meta"><strong>Nome:</strong> ${escaparHTML(pessoa.nome)}</div>
-            <div class="validador-meta"><strong>Curso:</strong> ${escaparHTML(pessoa.curso || '-')}</div>
-            <div class="validador-meta"><strong>Turma/Categoria:</strong> ${escaparHTML(pessoa.turma || pessoa.tipo || '-')}</div>
-            <div class="validador-meta"><strong>Tipo:</strong> ${escaparHTML(pessoa.tipo || 'Educando')}</div>
-        ` : '';
-
-        return `
-            <div class="validador-result ${resultado.tipoAlerta}">
-                <div class="validador-status">${escaparHTML(resultado.status)}</div>
-                <div class="validador-lote">${escaparHTML(resultado.lote)}</div>
-                <p>${escaparHTML(resultado.motivo)}</p>
-                ${detalhesPessoa}
-            </div>
-        `;
-    }
-
-    function coletarLotesParaValidador() {
-        const pessoas = [
-            ...window.todosEducandosBD.map(p => ({ ...p, tipo: p.turma === 'Equipe' ? 'Equipe' : 'Educando' })),
-            ...window.todosParceirosBD.map(p => ({ ...p, tipo: 'Parceiro' }))
-        ];
-
-        const itens = [];
-        pessoas.forEach(pessoa => {
-            (pessoa.lotesPendentes || []).forEach(lote => itens.push({ lote, status: 'PENDENTE / VETADA', classe: 'danger', pessoa }));
-            (pessoa.lotesVendidos || []).forEach(lote => itens.push({ lote, status: 'VENDIDA / VÁLIDA', classe: 'success', pessoa }));
-            (pessoa.lotesDevolvidos || []).forEach(lote => itens.push({ lote, status: 'DEVOLVIDA / NÃO VÁLIDA', classe: 'warning', pessoa }));
-        });
-
-        (window.lotesSedeBD || []).forEach(item => {
-            itens.push({ lote: item.codigo, status: item.educador ? `COM ${item.educador} / NÃO VENDIDA` : 'SEDE / NÃO VENDIDA', classe: 'warning', pessoa: null });
-        });
-
-        const mapa = new Map();
-        itens.forEach(item => {
-            const chave = normalizarCodigoLote(item.lote);
-            if (chave && !mapa.has(chave)) mapa.set(chave, item);
-        });
-        return Array.from(mapa.values()).sort((a, b) => normalizarCodigoLote(a.lote).localeCompare(normalizarCodigoLote(b.lote), 'pt-BR'));
-    }
-
-    function renderSugestoesValidador(inputId, resultId, termo) {
-        const codigo = normalizarCodigoLote(termo);
-        const itens = coletarLotesParaValidador();
-        const exato = itens.find(item => normalizarCodigoLote(item.lote) === codigo);
-        if (exato) return montarDetalhesResultadoValidador(buscarCartelaNoSistema(exato.lote));
-
-        const sugestoes = itens.filter(item => normalizarCodigoLote(item.lote).includes(codigo)).slice(0, 8);
-        if (!sugestoes.length) {
-            return `
-                <div class="validador-result danger">
-                    <div class="validador-status">NÃO ENCONTRADA</div>
-                    <div class="validador-lote">${escaparHTML(termo)}</div>
-                    <p>Nenhum lote parecido foi localizado na base carregada. Confira a numeração digitada.</p>
+        <div id="conteudoRanking" style="display: none;">
+            <div class="ranking-section">
+                <h2 class="section-title"><span class="material-symbols-outlined" style="font-size: 2.2rem; color: var(--sunflower-gold); vertical-align: middle;">emoji_events</span> Top Educandos</h2>
+                <div style="display: flex; gap: 10px; margin-bottom: 1rem; align-items: center;">
+                    <input type="text" id="buscaRankingPublico" class="purple-input" placeholder="Pesquisar aluno no ranking..." style="flex: 1;">
                 </div>
-            `;
-        }
-
-        return `
-            <div class="validador-sugestoes">
-                <div class="validador-sugestoes-title">Lotes encontrados enquanto você digita:</div>
-                ${sugestoes.map(item => `
-                    <button type="button" class="validador-sugestao-btn js-validador-sugestao" data-input-id="${escaparHTML(inputId)}" data-result-id="${escaparHTML(resultId)}" data-lote="${escaparHTML(item.lote)}">
-                        <span class="sugestao-lote">${escaparHTML(item.lote)}</span>
-                        <span class="sugestao-status ${item.classe}">${escaparHTML(item.status)}</span>
-                        ${item.pessoa ? `<small>${escaparHTML(item.pessoa.nome)} • ${escaparHTML(item.pessoa.turma || item.pessoa.tipo || '-')}</small>` : '<small>Lote sem educando vinculado</small>'}
-                    </button>
-                `).join('')}
+                <div class="table-container" style="overflow-x: auto; margin-bottom: 1rem;">
+                    <table class="data-table" style="min-width: 900px;">
+                        <thead>
+                            <tr><th class="text-center">Pos.</th><th>Foto</th><th>Nome do Educando</th><th>Turma</th><th class="text-center">Retirados</th><th class="text-center">Vendidos</th><th class="text-center">Pendentes</th><th class="text-center">Cartelas Ganhas</th><th class="text-center">Fone</th></tr>
+                        </thead>
+                        <tbody id="tabelaRankingAlunosPublico"></tbody>
+                    </table>
+                </div>
+                
+                <div class="discrete-pagination">
+                    <button class="btn-page-discrete" onclick="mudarPaginaRankingPublico(-1)">&lt;</button>
+                    <input type="number" class="page-input-discrete" id="inputPgPub" value="1" min="1" onchange="irParaPaginaPub(this)">
+                    <span style="color:var(--dim-grey); font-size:0.9rem;">de <span id="totPgPub">1</span></span>
+                    <button class="btn-page-discrete" onclick="mudarPaginaRankingPublico(1)">&gt;</button>
+                </div>
             </div>
-        `;
-    }
 
-    window.validarCartelaPendente = function(inputId, resultId) {
-        const input = document.getElementById(inputId);
-        const result = document.getElementById(resultId);
-        if (!input || !result) return;
-        const codigo = input.value.trim();
-        if (!codigo) return window.abrirModalErro('Digite o número da cartela/lote para validar.');
+            <div class="ranking-section">
+                <h2 class="section-title"><span class="material-symbols-outlined" style="font-size: 2.2rem; color: var(--petal-pink); vertical-align: middle;">school</span> Top Educadores</h2>
+                <div class="table-container" style="overflow-x: auto;">
+                    <table class="data-table" style="min-width: 700px;">
+                        <thead>
+                            <tr><th class="text-center">Posição</th><th>Nome do Educador</th><th>Curso</th><th class="text-center">Lotes Consolidados</th><th class="text-center">Valor Arrecadado</th></tr>
+                        </thead>
+                        <tbody id="tabelaRankingEducadoresPublico"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        const resultado = buscarCartelaNoSistema(codigo);
-        if (!resultado) return;
-        result.innerHTML = montarDetalhesResultadoValidador(resultado);
-        window.registrarLog("Validador de Cartela", `Consultou ${resultado.lote}: ${resultado.status}`);
-    }
+    <script>
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWD-pi7qf1Vlp01I8CO-7euJmqsNureruSEjeFc9bdYUZ_M13he6bqBC_ctJGHUpc4ow/exec'; 
 
-    window.buscarValidadorCartelaAutomatico = function(inputId, resultId) {
-        const input = document.getElementById(inputId);
-        const result = document.getElementById(resultId);
-        if (!input || !result) return;
-
-        if (!window.__validadorTimers) window.__validadorTimers = {};
-        clearTimeout(window.__validadorTimers[inputId]);
-
-        window.__validadorTimers[inputId] = setTimeout(() => {
-            const termo = input.value.trim();
-            if (!termo) {
-                result.innerHTML = '';
-                return;
-            }
-            if (termo.length < 2) {
-                result.innerHTML = `<div class="validador-help">Digite pelo menos 2 caracteres para buscar automaticamente.</div>`;
-                return;
-            }
-            result.innerHTML = renderSugestoesValidador(inputId, resultId, termo);
-        }, 180);
-    }
-
-    window.preencherValidadorCartela = function(inputId, resultId, lote) {
-        const input = document.getElementById(inputId);
-        if (input) input.value = lote;
-        window.validarCartelaPendente(inputId, resultId);
-    }
-
-    window.limparValidadorCartela = function(inputId, resultId) {
-        const input = document.getElementById(inputId);
-        const result = document.getElementById(resultId);
-        if (input) input.value = '';
-        if (result) result.innerHTML = '';
-        if (input) input.focus();
-    }
-
-    window.iniciarCorteFoto = function(event) {
-        const input = event.target;
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const imgToCrop = document.getElementById('imagemParaCorte'); imgToCrop.src = e.target.result;
-                window.modoEdicaoFoto = false; window.tipoCadastroFoto = 'aluno'; abrirModal('modalCorteFoto');
-                if(cropperInstancia) cropperInstancia.destroy();
-                cropperInstancia = new Cropper(imgToCrop, { aspectRatio: 1, viewMode: 1 });
-            }
-            reader.readAsDataURL(input.files[0]);
+        function textoIgual(t1, t2) {
+            if(!t1 || !t2) return false;
+            return t1.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase() === 
+                   t2.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
         }
-        input.value = ''; 
-    }
 
-    window.iniciarCorteColaborador = function(event) {
-        const input = event.target;
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const imgToCrop = document.getElementById('imagemParaCorte'); imgToCrop.src = e.target.result;
-                window.modoEdicaoFoto = false; window.tipoCadastroFoto = 'colaborador'; abrirModal('modalCorteFoto');
-                if(cropperInstancia) cropperInstancia.destroy();
-                cropperInstancia = new Cropper(imgToCrop, { aspectRatio: 1, viewMode: 1 });
-            }
-            reader.readAsDataURL(input.files[0]);
+        let educandosGlobal = [];
+        let educadoresGlobal = [];
+        let paginaAtual = 1;
+        let termoBusca = "";
+
+        function calcularRecompensas(qtdVendidos) {
+            let fone = qtdVendidos >= 10 ? 1 : 0;
+            let cartelas = qtdVendidos >= 10 ? 1 + Math.floor((qtdVendidos - 10) / 5) : 0;
+            return { fone, cartelas };
         }
-        input.value = ''; 
-    }
 
-    window.iniciarCorteEdicao = function(event) {
-        const input = event.target;
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const imgToCrop = document.getElementById('imagemParaCorte'); imgToCrop.src = e.target.result;
-                window.modoEdicaoFoto = true; abrirModal('modalCorteFoto');
-                if(cropperInstancia) cropperInstancia.destroy();
-                cropperInstancia = new Cropper(imgToCrop, { aspectRatio: 1, viewMode: 1 });
+        function renderizarRankingPagina() {
+            let filtrados = [...educandosGlobal].sort((a, b) => b.lotesVendidos.length - a.lotesVendidos.length);
+            filtrados = filtrados.filter(a => a.lotesVendidos.length > 0 || a.lotesPendentes.length > 0);
+
+            if(termoBusca) {
+                filtrados = filtrados.filter(a => a.nome.toLowerCase().includes(termoBusca.toLowerCase()));
             }
-            reader.readAsDataURL(input.files[0]);
+
+            const totalPaginas = Math.ceil(filtrados.length / 10) || 1;
+            if(paginaAtual > totalPaginas) paginaAtual = totalPaginas;
+            if(paginaAtual < 1) paginaAtual = 1;
+
+            const inicio = (paginaAtual - 1) * 10;
+            const loteAtual = filtrados.slice(inicio, inicio + 10);
+
+            const tabelaAlunos = document.getElementById('tabelaRankingAlunosPublico');
+            tabelaAlunos.innerHTML = "";
+
+            loteAtual.forEach((aluno, index) => {
+                const posReal = inicio + index + 1;
+                const rec = calcularRecompensas(aluno.lotesVendidos.length);
+                const cartelasHTML = rec.cartelas > 0 ? `<div style="font-weight:bold; color:var(--sunflower-gold);">${rec.cartelas}</div>` : '-';
+                const foneHTML = rec.fone > 0 ? '<span class="material-symbols-outlined" style="color:var(--petal-pink);">headphones</span>' : '-';
+                let posHtml = posReal === 1 ? '<span class="material-symbols-outlined" style="color:var(--sunflower-gold); font-size:2rem;">trophy</span>' : `<span style="font-weight:bold; font-size:1.2rem;">${posReal}º</span>`;
+                
+                tabelaAlunos.innerHTML += `<tr>
+                    <td class="td-center">${posHtml}</td>
+                    <td><img src="${aluno.foto}" class="table-avatar" style="width: 50px; height: 50px; border-radius: 50%;"></td>
+                    <td style="white-space: nowrap;"><strong style="font-size:1.1rem; color:var(--obsidian);">${aluno.nome}</strong><br><small style="color:#a0a0a0">Educador: ${aluno.educadorResponsavel}</small></td>
+                    <td style="color: var(--dim-grey); white-space: nowrap;">${aluno.turma}</td>
+                    <td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td>
+                    <td class="td-center highlight-purple" style="font-size:1.2rem; font-weight:bold;">${aluno.lotesVendidos.length}</td>
+                    <td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td>
+                    <td class="td-center">${cartelasHTML}</td>
+                    <td class="td-center">${foneHTML}</td>
+                </tr>`;
+            });
+
+            if (loteAtual.length === 0) tabelaAlunos.innerHTML = '<tr><td colspan="9" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum aluno encontrado no ranking.</td></tr>';
+            
+            document.getElementById("inputPgPub").value = paginaAtual;
+            document.getElementById("totPgPub").innerText = totalPaginas;
         }
-        input.value = ''; 
-    }
 
-    const btnConfirmarCorte = document.getElementById('btnConfirmarCorte');
-    if(btnConfirmarCorte) {
-        btnConfirmarCorte.addEventListener('click', (e) => {
-            e.preventDefault();
-            if(cropperInstancia) {
-                if (window.modoEdicaoFoto && window.alunoEmFocoIdx !== null) {
-                    btnConfirmarCorte.innerText = "Enviando para a Nuvem..."; btnConfirmarCorte.disabled = true;
-                    cropperInstancia.getCroppedCanvas({ width: 300, height: 300 }).toBlob((blob) => {
-                        const formData = new FormData(); 
-                        formData.append('file', blob); 
-                        formData.append('upload_preset', CLOUDINARY_PRESET);
+        window.mudarPaginaRankingPublico = function(dir) {
+            paginaAtual += dir;
+            renderizarRankingPagina();
+        }
 
-                        fetch(CLOUDINARY_URL, { method: 'POST', body: formData })
-                        .then(r => r.json()).then(dataImg => {
-                            if(dataImg.secure_url) {
-                                const urlDaFoto = dataImg.secure_url;
-                                const pessoa = (window.tipoPessoaEmFoco === 'Parceiro') ? window.todosParceirosBD[window.alunoEmFocoIdx] : window.todosEducandosBD[window.alunoEmFocoIdx];
-                                pessoa.foto = urlDaFoto;
-                                document.getElementById('detalheFoto').src = urlDaFoto;
-                                
-                                if(document.getElementById("educadorPage")) window.atualizarDashboardEducador();
-                                if(document.getElementById("adminPage")) window.atualizarDashboardsADM();
-                                
-                                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'atualizar_foto', nomeAluno: pessoa.nome, fotoUrl: urlDaFoto }) });
-                                
-                                fecharModal('modalCorteFoto'); window.abrirModalSucesso("Foto atualizada com sucesso!");
-                            } else { window.abrirModalErro("Erro do Cloudinary."); }
-                        }).catch(() => { window.abrirModalErro("Erro de rede."); })
-                        .finally(() => { btnConfirmarCorte.innerText = "Cortar e Salvar Foto"; btnConfirmarCorte.disabled = false; window.modoEdicaoFoto = false; });
-                    }, 'image/jpeg');
-                } else {
-                    cropperInstancia.getCroppedCanvas({ width: 300, height: 300 }).toBlob((blob) => {
-                        window.fotoFileGlobal = blob;
-                        if(window.tipoCadastroFoto === 'colaborador') {
-                            document.getElementById('previewFotoColaborador').src = URL.createObjectURL(blob);
-                            document.getElementById('previewFotoColaborador').style.display = 'block';
-                            document.getElementById('iconCameraColaborador').style.display = 'none';
-                        } else {
-                            if(document.getElementById('previewFoto')) {
-                                document.getElementById('previewFoto').src = URL.createObjectURL(blob);
-                                document.getElementById('previewFoto').style.display = 'block';
-                                document.getElementById('iconCamera').style.display = 'none';
-                            }
-                        }
-                        fecharModal('modalCorteFoto');
-                    }, 'image/jpeg');
-                }
-            }
+        window.irParaPaginaPub = function(input) {
+            paginaAtual = parseInt(input.value) || 1;
+            renderizarRankingPagina();
+        }
+
+        document.getElementById('buscaRankingPublico').addEventListener('input', (e) => {
+            termoBusca = e.target.value;
+            paginaAtual = 1;
+            renderizarRankingPagina();
         });
-    }
 
-    // ==========================================
-    // RENDERIZADORES PAGINADOS
-    // ==========================================
+        function sincronizarPublico() {
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'sincronizar_dados' }) })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    educandosGlobal = data.educandos.map(e => ({
+                        nome: e['Nome_Educando'] || e['Nome'], 
+                        turma: e['Turma'], 
+                        educadorResponsavel: e['Educador_Responsavel'] || '',
+                        foto: e['Foto_URL'] && String(e['Foto_URL']).trim() !== '' ? e['Foto_URL'] : `https://ui-avatars.com/api/?name=${e['Nome_Educando'] || e['Nome']}&background=BC68A1&color=fff`,
+                        lotesVendidos: e['Lotes_Vendidos'] ? String(e['Lotes_Vendidos']).split(',').map(s=>s.trim()).filter(Boolean) : [],
+                        lotesPendentes: e['Lotes_Pendentes'] ? String(e['Lotes_Pendentes']).split(',').map(s=>s.trim()).filter(Boolean) : []
+                    }));
 
-    window.renderRankingAlunosAdm = function() {
-        const tabela = document.getElementById("tabelaRankingAlunosADM"); if(!tabela) return;
-        let filtrados = [...window.todosEducandosBD].filter(a => a.turma !== 'Equipe').sort((a, b) => b.lotesVendidos.length - a.lotesVendidos.length);
-        filtrados = filtrados.filter(a => a.lotesVendidos.length > 0 || a.lotesPendentes.length > 0);
-        if (window.pages.rankAdm.term) filtrados = filtrados.filter(a => a.nome.toLowerCase().includes(window.pages.rankAdm.term.toLowerCase()));
-
-        const startIdx = (window.pages.rankAdm.current - 1) * 10;
-        const paginated = filtrados.slice(startIdx, startIdx + 10);
-        
-        tabela.innerHTML = paginated.map((aluno, index) => {
-            const posReal = startIdx + index + 1;
-            const rec = calcularRecompensas(aluno.lotesVendidos.length);
-            const cartelasHTML = rec.cartelas > 0 ? `<div class="flex-center" style="font-weight:bold; color:var(--sunflower-gold);">${rec.cartelas}</div>` : '-';
-            const foneHTML = rec.fone > 0 ? '<span class="material-symbols-outlined" style="color:var(--petal-pink);">headphones</span>' : '-';
-            const tagMeu = `<br><small style="color:#a0a0a0">Edu: ${aluno.educadorResponsavel}</small>`;
-            return `<tr onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(aluno)}, 'Educando')"><td class="td-center" style="font-weight: bold;">${posReal}º</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong style="color:var(--obsidian);">${aluno.nome}</strong>${tagMeu}</td><td style="color:var(--dim-grey);">${aluno.turma}</td><td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td><td class="td-center">${cartelasHTML}</td><td class="td-center">${foneHTML}</td></tr>`;
-        }).join('') || '<tr><td colspan="9" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum aluno encontrado.</td></tr>';
-        
-        renderPaginationUI('pagRankingAlunos', 'rankAdm', filtrados.length, 10, 'renderRankingAlunosAdm');
-    }
-
-    window.renderRankingAlunosEdu = function() {
-        const tabela = document.getElementById("tabelaRankingEducador"); if(!tabela) return;
-        let filtrados = [...window.todosEducandosBD].filter(a => a.turma !== 'Equipe').sort((a, b) => b.lotesVendidos.length - a.lotesVendidos.length);
-        filtrados = filtrados.filter(a => a.lotesVendidos.length > 0 || a.lotesPendentes.length > 0);
-        if (window.pages.rankEdu.term) filtrados = filtrados.filter(a => a.nome.toLowerCase().includes(window.pages.rankEdu.term.toLowerCase()));
-
-        const startIdx = (window.pages.rankEdu.current - 1) * 10;
-        const paginated = filtrados.slice(startIdx, startIdx + 10);
-        
-        tabela.innerHTML = paginated.map((aluno, index) => {
-            const posReal = startIdx + index + 1;
-            const rec = calcularRecompensas(aluno.lotesVendidos.length);
-            const cartelasHTML = rec.cartelas > 0 ? `<div class="flex-center" style="font-weight:bold; color:var(--sunflower-gold);">${rec.cartelas}</div>` : '-';
-            const foneHTML = rec.fone > 0 ? '<span class="material-symbols-outlined" style="color:var(--petal-pink);">headphones</span>' : '-';
-            const destaque = textoIgual(aluno.educadorResponsavel, userName) ? 'background-color: rgba(188, 104, 161, 0.05);' : '';
-            const tagMeu = textoIgual(aluno.educadorResponsavel, userName) ? ' <br><span style="font-size:0.7rem; background:var(--petal-pink); color:white; padding:2px 4px; border-radius:4px;">Seu Aluno</span>' : '';
-            return `<tr style="${destaque}" onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(aluno)}, 'Educando')"><td class="td-center" style="font-weight: bold;">${posReal}º</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong style="color:var(--obsidian);">${aluno.nome}</strong>${tagMeu}</td><td style="color:var(--dim-grey);">${aluno.turma}</td><td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td><td class="td-center">${cartelasHTML}</td><td class="td-center">${foneHTML}</td></tr>`;
-        }).join('') || '<tr><td colspan="9" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum aluno encontrado.</td></tr>';
-        
-        renderPaginationUI('pagRankingEducador', 'rankEdu', filtrados.length, 10, 'renderRankingAlunosEdu');
-    }
-
-    window.renderRankingEquipeAdm = function() {
-        const tabela = document.getElementById("tabelaRankingEquipeADM"); if(!tabela) return;
-        let filtrados = window.todosEducandosBD.filter(a => a.turma === 'Equipe').sort((a, b) => b.lotesVendidos.length - a.lotesVendidos.length);
-        
-        const startIdx = (window.pages.rankEquipe.current - 1) * 10;
-        const paginated = filtrados.slice(startIdx, startIdx + 10);
-
-        tabela.innerHTML = paginated.map((colab, index) => {
-            const valorArrecadado = (colab.lotesVendidos.length * 20).toFixed(2).replace('.', ',');
-            return `<tr style="cursor: pointer;" onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(colab)}, 'Equipe')">
-                <td class="td-center" style="font-weight: bold; color: var(--petal-pink);">${startIdx + index + 1}º</td>
-                <td><img src="${colab.foto}" class="table-avatar" style="border: 2px solid var(--sunflower-gold);"></td>
-                <td><strong>${colab.nome}</strong><br><small style="color:var(--sunflower-gold); font-weight:bold;">Colaborador</small></td>
-                <td class="td-center" style="font-weight: bold; font-size: 1.1rem;">${colab.lotesVendidos.length}</td>
-                <td class="td-center highlight-purple" style="font-weight: bold;">R$ ${valorArrecadado}</td>
-            </tr>`;
-        }).join('') || '<tr><td colspan="5" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum colaborador registrado.</td></tr>';
-        
-        renderPaginationUI('pagRankingEquipe', 'rankEquipe', filtrados.length, 10, 'renderRankingEquipeAdm');
-    }
-
-    window.renderParceirosListaPaginado = function() {
-        const tabela = document.getElementById("tabelaParceirosLista"); if(!tabela) return;
-        let filtrados = [...window.todosParceirosBD];
-        
-        const startIdx = (window.pages.parceiros.current - 1) * 10;
-        const paginated = filtrados.slice(startIdx, startIdx + 10);
-
-        tabela.innerHTML = paginated.map((parc, index) => {
-            const valorArrecadado = (parc.lotesVendidos.length * 20).toFixed(2).replace('.', ',');
-            return `<tr style="cursor: pointer;" onclick="abrirDetalhesAluno(${window.todosParceirosBD.indexOf(parc)}, 'Parceiro')">
-                <td><img src="${parc.foto}" class="table-avatar" style="border: 2px solid #4CAF50;"></td>
-                <td><strong>${parc.nome}</strong><br><small style="color:#4CAF50; font-weight:bold;">Comércio Parceiro</small></td>
-                <td class="td-center" style="font-weight: bold; font-size: 1.1rem;">${parc.lotesVendidos.length}</td>
-                <td class="td-center highlight-purple" style="font-weight: bold;">R$ ${valorArrecadado}</td>
-            </tr>`;
-        }).join('') || '<tr><td colspan="4" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum parceiro registrado.</td></tr>';
-        
-        renderPaginationUI('pagParceiros', 'parceiros', filtrados.length, 10, 'renderParceirosListaPaginado');
-    }
-
-    window.renderGestaoLotesPaginado = function() {
-        const tabela = document.getElementById('tabelaGestaoLotes'); if(!tabela) return;
-        
-        let listaUnificada = [
-            ...window.todosEducandosBD.map(e => ({ ...e, tipo: e.turma === 'Equipe' ? 'Equipe' : 'Educando', bdIdx: window.todosEducandosBD.indexOf(e) })),
-            ...window.todosParceirosBD.map(p => ({ ...p, tipo: 'Parceiro', bdIdx: window.todosParceirosBD.indexOf(p) }))
-        ];
-
-        let filtrados = listaUnificada.filter(a => a.lotesPendentes.length > 0);
-        if(window.pages.gestaoLotes.term) filtrados = filtrados.filter(a => a.nome.toLowerCase().includes(window.pages.gestaoLotes.term.toLowerCase()));
-
-        const startIdx = (window.pages.gestaoLotes.current - 1) * 10;
-        const paginated = filtrados.slice(startIdx, startIdx + 10);
-
-        tabela.innerHTML = paginated.map((pessoa) => {
-            let corBadge = pessoa.tipo === 'Parceiro' ? '#4CAF50' : (pessoa.tipo === 'Equipe' ? 'var(--sunflower-gold)' : 'var(--petal-pink)');
-            let descCategoria = pessoa.tipo === 'Equipe' ? 'Venda Direta' : (pessoa.tipo === 'Parceiro' ? 'Parceiro' : `Educando (${pessoa.turma})`);
-            return `<tr style="cursor: pointer;" onclick="abrirDetalhesAluno(${pessoa.bdIdx}, '${pessoa.tipo}')">
-                <td><img src="${pessoa.foto}" class="table-avatar" style="border: 2px solid ${corBadge};"></td>
-                <td><strong>${pessoa.nome}</strong><br><small style="color:${corBadge}; font-weight:bold;">${pessoa.tipo}</small></td>
-                <td style="color:var(--dim-grey);">${pessoa.curso || '-'}<br><small style="color:var(--light-grey);">${descCategoria}</small></td>
-                <td class="td-center highlight-yellow" style="font-weight:bold; font-size:1.1rem;">${pessoa.lotesPendentes.length}</td>
-            </tr>`;
-        }).join('') || `<tr><td colspan="4" class="text-center" style="padding: 2rem; color: #a0a0a0;">Nenhum lote pendente.</td></tr>`;
-        
-        renderPaginationUI('pagLotes', 'gestaoLotes', filtrados.length, 10, 'renderGestaoLotesPaginado');
-    }
-
-    window.renderLogsPaginado = function() {
-        const tabela = document.getElementById('tabelaLogs'); if(!tabela) return;
-        const filtrados = [...window.logsDoSistema].reverse(); 
-        const startIdx = (window.pages.logs.current - 1) * 10;
-        const paginated = filtrados.slice(startIdx, startIdx + 10);
-
-        tabela.innerHTML = paginated.map(l => {
-            const dt = l['Data/Hora'] || l['Data_Hora'] || l['Data Hora'] || l['Data'] || '-';
-            const resp = l['Responsavel'] || l['Responsável'] || l['Usuário'] || l['Usuario'] || '-';
-            const sessao = l['Sessão_Dispositivo'] || l['Sessao'] || l['Sessao Dispositivo'] || '-';
-            const acao = l['Ação_Registrada'] || l['Ação'] || l['Ação'] || l['Acao Registrada'] || '-';
-            const det = l['Detalhes'] || l['Detalhe'] || '-';
-            return `<tr><td style="color:var(--dim-grey); font-size:0.85rem;">${dt}</td><td><strong>${resp}</strong><br><small style="color:#ccc;">${sessao}</small></td><td style="color:var(--petal-pink); font-weight:bold;">${acao}</td><td style="color:var(--dim-grey);">${det}</td></tr>`;
-        }).join('') || `<tr><td colspan="4" class="text-center" style="padding: 2rem; color: #a0a0a0;">Nenhum log encontrado.</td></tr>`;
-        renderPaginationUI('pagLogs', 'logs', filtrados.length, 10, 'renderLogsPaginado');
-    }
-
-    window.renderLivroCaixaPaginado = function() {
-        const tabela = document.getElementById('tabelaLivroCaixa'); if(!tabela) return;
-        const filtrados = window.caixaGlobalBD ? [...window.caixaGlobalBD].reverse() : [];
-        const startIdx = (window.pages.caixa.current - 1) * 10;
-        const paginated = filtrados.slice(startIdx, startIdx + 10);
-
-        tabela.innerHTML = paginated.map(tx => {
-            const dt = tx['Data/Hora'] || tx['Data_Hora'] || tx['Data Hora'] || tx['Data'] || tx['Carimbo de data/hora'] || '-';
-            const id = tx['ID_Transacao'] || tx['ID Transação'] || tx['ID Transacao'] || tx['ID'] || tx['Id'] || '-';
-            const lote = tx['Lote'] || tx['Codigo_Lote'] || tx['Código Lote'] || tx['Código'] || '-';
-            const edu = tx['Educando'] || tx['Aluno'] || tx['Nome'] || tx['Vendedor'] || tx['Parceiro'] || '-';
-            const valRaw = tx['Valor'] || tx['Valor_Total'] || tx['Valor Recebido'] || tx['Valor(R$)'] || 0;
-            const val = parseFloat(valRaw).toFixed(2).replace('.', ',');
-            const met = tx['Metodo_Pagamento'] || tx['Método de Pagamento'] || tx['Método'] || tx['Metodo'] || tx['Forma_Pagamento'] || tx['Forma de Pagamento'] || '-';
-            const resp = tx['Responsavel'] || tx['Responsável'] || tx['Educador Responsável'] || tx['Educador'] || '-';
-            
-            return `<tr><td>${dt}</td><td><span style="color:#a0a0a0; font-size:0.8rem;">${id}</span></td><td><strong>${lote}</strong></td><td>${edu}</td><td class="highlight-purple" style="font-weight:bold;">R$ ${val}</td><td>${met}</td><td>${resp}</td></tr>`;
-        }).join('') || `<tr><td colspan="7" class="text-center" style="padding: 2rem; color: #a0a0a0;">Nenhuma transação registrada. Verifique se a linha 1 do Google Sheets possui cabeçalhos.</td></tr>`;
-        
-        renderPaginationUI('pagLivroCaixa', 'caixa', filtrados.length, 10, 'renderLivroCaixaPaginado');
-    }
-
-    window.renderMinhaTurmaPaginado = function() {
-        const tabela = document.getElementById('tabelaAlunos'); if(!tabela) return;
-        let filtrados = window.todosEducandosBD.filter(a => textoIgual(a.educadorResponsavel, userName) && (a.cadastroAtivo.toLowerCase() === 'sim' || a.lotesVendidos.length > 0 || a.lotesPendentes.length > 0)); 
-        
-        if(window.pages.minhaTurma.term) filtrados = filtrados.filter(a => a.nome.toLowerCase().includes(window.pages.minhaTurma.term.toLowerCase()));
-        if(window.pages.minhaTurma.turma !== "Todas") filtrados = filtrados.filter(a => a.turma === window.pages.minhaTurma.turma);
-
-        const startIdx = (window.pages.minhaTurma.current - 1) * 10;
-        const paginated = filtrados.slice(startIdx, startIdx + 10);
-
-        tabela.innerHTML = paginated.map((aluno, index) => {
-            const posReal = startIdx + index + 1;
-            const rec = calcularRecompensas(aluno.lotesVendidos.length);
-            const cartelasHTML = rec.cartelas > 0 ? `<div class="flex-center" style="font-weight:bold; color:var(--sunflower-gold);">${rec.cartelas}</div>` : '-';
-            const foneHTML = rec.fone > 0 ? '<span class="material-symbols-outlined" style="color:var(--petal-pink);">headphones</span>' : '-';
-            return `<tr onclick="abrirDetalhesAluno(${window.todosEducandosBD.indexOf(aluno)}, 'Educando')"><td class="td-center" style="font-weight: bold; color: #BC68A1;">${posReal}</td><td><img src="${aluno.foto}" class="table-avatar"></td><td><strong>${aluno.nome}</strong><br><small style="color:#a0a0a0">${aluno.curso}</small></td><td class="td-center">${aluno.lotesVendidos.length + aluno.lotesPendentes.length}</td><td class="td-center highlight-purple" style="font-weight:bold;">${aluno.lotesVendidos.length}</td><td class="td-center ${aluno.lotesPendentes.length > 0 ? 'td-highlight' : ''}">${aluno.lotesPendentes.length}</td><td class="td-center">${cartelasHTML}</td><td class="td-center">${foneHTML}</td></tr>`;
-        }).join('') || '<tr><td colspan="8" class="text-center" style="padding: 20px; color: #a0a0a0;">Nenhum aluno encontrado.</td></tr>';
-        
-        renderPaginationUI('pagMinhaTurma', 'minhaTurma', filtrados.length, 10, 'renderMinhaTurmaPaginado');
-    }
-
-    const srchRankA = document.getElementById("buscaRankingAluno");
-    if(srchRankA) srchRankA.addEventListener('input', (e) => { window.pages.rankAdm.term = e.target.value; window.pages.rankAdm.current = 1; window.renderRankingAlunosAdm(); });
-    
-    const srchRankE = document.getElementById("buscaRankingAlunoEdu");
-    if(srchRankE) srchRankE.addEventListener('input', (e) => { window.pages.rankEdu.term = e.target.value; window.pages.rankEdu.current = 1; window.renderRankingAlunosEdu(); });
-    
-    const srchLotes = document.getElementById("buscaGestaoLotes");
-    if(srchLotes) srchLotes.addEventListener('input', (e) => { window.pages.gestaoLotes.term = e.target.value; window.pages.gestaoLotes.current = 1; window.renderGestaoLotesPaginado(); });
-
-    const srchPendAdm = document.getElementById("buscaPendentesAdm");
-    if(srchPendAdm) srchPendAdm.addEventListener('input', (e) => { window.pages.pendentesAdm.term = e.target.value; window.pages.pendentesAdm.current = 1; window.renderPendentesAdminPaginado(); });
-
-    const srchPendEdu = document.getElementById("buscaPendentesEducador");
-    if(srchPendEdu) srchPendEdu.addEventListener('input', (e) => { window.pages.pendentesEdu.term = e.target.value; window.pages.pendentesEdu.current = 1; window.renderPendentesEducadorPaginado(); });
-
-    function ligarCliqueSeguro(id, callback) {
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.addEventListener('click', (event) => {
-            event.preventDefault();
-            callback(event);
-        });
-    }
-
-    ligarCliqueSeguro('btnExportarPendentesAdm', () => window.exportarPendentesAdmin());
-    ligarCliqueSeguro('btnExportarPendentesMinhaTurma', () => window.exportarPendentesEducador());
-    ligarCliqueSeguro('btnExportarPendentesEducador', () => window.exportarPendentesEducador());
-    ligarCliqueSeguro('btnValidarCartelaAdm', () => window.validarCartelaPendente('inputValidadorCartelaAdm', 'resultadoValidadorCartelaAdm'));
-    ligarCliqueSeguro('btnValidarCartelaEducador', () => window.validarCartelaPendente('inputValidadorCartelaEducador', 'resultadoValidadorCartelaEducador'));
-
-    document.querySelectorAll('.js-validador-input').forEach(input => {
-        const resultId = input.getAttribute('data-result-id');
-        if (!resultId) return;
-        input.addEventListener('input', () => window.buscarValidadorCartelaAutomatico(input.id, resultId));
-    });
-
-    document.addEventListener('click', (event) => {
-        const botaoSugestao = event.target.closest('.js-validador-sugestao');
-        if (!botaoSugestao) return;
-        event.preventDefault();
-        window.preencherValidadorCartela(
-            botaoSugestao.getAttribute('data-input-id'),
-            botaoSugestao.getAttribute('data-result-id'),
-            botaoSugestao.getAttribute('data-lote')
-        );
-    });
-
-    // ==========================================
-    // SEÇÃO DO EDUCADOR
-    // ==========================================
-    const educadorPage = document.getElementById("educadorPage");
-    if (educadorPage) {
-        document.getElementById('nomeEducador').innerText = userName;
-
-        const buscaNome = document.getElementById('buscaNomeAluno');
-        const filtroTurma = document.getElementById('filtroTurmaAluno');
-        if(buscaNome) buscaNome.addEventListener('input', (e) => { window.pages.minhaTurma.term = e.target.value; window.pages.minhaTurma.current = 1; window.atualizarDashboardEducador() });
-        if(filtroTurma) filtroTurma.addEventListener('change', (e) => { window.pages.minhaTurma.turma = e.target.value; window.pages.minhaTurma.current = 1; window.atualizarDashboardEducador() });
-
-        window.atualizarDashboardEducador = function() {
-            window.renderMinhaTurmaPaginado();
-            window.renderPendentesEducadorPaginado();
-
-            let totalPendentesGeral = 0, totalVendidosGeral = 0;
-            window.todosEducandosBD.forEach(a => { totalPendentesGeral += a.lotesPendentes.length; totalVendidosGeral += a.lotesVendidos.length; });
-
-            const meuPerfil = window.mockEducadoresBD.find(e => textoIgual(e.nome, userName));
-            if(meuPerfil) {
-                const disponivel = meuPerfil.lotesRetiradosSede - (meuPerfil.lotesVendidos + meuPerfil.lotesPendentes);
-                if(document.getElementById('kpiEducadorVendidos')) document.getElementById('kpiEducadorVendidos').innerText = meuPerfil.lotesVendidos;
-                if(document.getElementById('kpiEducadorPendentes')) document.getElementById('kpiEducadorPendentes').innerText = meuPerfil.lotesPendentes;
-                if(document.getElementById('kpiEducadorEstoque')) document.getElementById('kpiEducadorEstoque').innerText = disponivel >= 0 ? disponivel : 0;
-            }
-
-            const vVendasPix = window.caixaGlobal.pixReais; const vVendasDin = window.caixaGlobal.dinReais;
-            const vVendas = vVendasPix + vVendasDin; const vPendentes = totalPendentesGeral * 20.00;
-            
-            const kpiGlobal = document.getElementById('kpiVendasReaisGlobal');
-            const kpiPix = document.getElementById('kpiCaixaPix');
-            const kpiDin = document.getElementById('kpiCaixaDinheiro');
-            const kpiProj = document.getElementById('kpiProjecaoGlobal');
-
-            if(kpiGlobal) kpiGlobal.innerText = `R$ ${vVendas.toFixed(2).replace('.', ',')}`;
-            if(kpiPix) kpiPix.innerText = `R$ ${vVendasPix.toFixed(2).replace('.', ',')}`;
-            if(kpiDin) kpiDin.innerText = `R$ ${vVendasDin.toFixed(2).replace('.', ',')}`;
-            if(kpiProj) kpiProj.innerText = `R$ ${vPendentes.toFixed(2).replace('.', ',')}`;
-            
-            const ctxEstEdu = document.getElementById('estoqueChartEdu');
-            if (ctxEstEdu && ctxEstEdu.offsetParent !== null) { 
-                if (!estoqueChartInstEdu) estoqueChartInstEdu = new Chart(ctxEstEdu.getContext('2d'), { type: 'doughnut', data: { labels: ['Válidos', 'Pendentes', 'Estoque'], datasets: [{ data: [totalVendidosGeral, totalPendentesGeral, 440], backgroundColor: ['#BC68A1', '#F4B841', '#e0e0e0'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false } });
-                else { estoqueChartInstEdu.data.datasets[0].data = [totalVendidosGeral, totalPendentesGeral, 440]; estoqueChartInstEdu.update(); }
-            }
-            const ctxFinEdu = document.getElementById('financeiroChartEdu');
-            if (ctxFinEdu && ctxFinEdu.offsetParent !== null) {
-                if (!financeiroChartInstEdu) financeiroChartInstEdu = new Chart(ctxFinEdu.getContext('2d'), { type: 'bar', data: { labels: ['Caixa Realizado', 'Projeção Restante'], datasets: [{ label: 'Valor em R$', data: [vVendas, vPendentes], backgroundColor: ['#BC68A1', '#F4B841'], borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } } });
-                else { financeiroChartInstEdu.data.datasets[0].data = [vVendas, vPendentes]; financeiroChartInstEdu.update(); }
-            }
-
-            window.renderRankingAlunosEdu();
-
-            const tabelaRankingEducadores = document.getElementById('tabelaRankingEducadoresLista');
-            if(tabelaRankingEducadores) {
-                let rankingProf = [...window.mockEducadoresBD].sort((a, b) => b.lotesVendidos - a.lotesVendidos);
-                const startIdx = (window.pages.rankProfEdu.current - 1) * 10;
-                const paginated = rankingProf.slice(startIdx, startIdx + 10);
-
-                tabelaRankingEducadores.innerHTML = paginated.map((prof, index) => {
-                    const destaque = textoIgual(prof.nome, userName) ? 'background-color: rgba(188, 104, 161, 0.05);' : '';
-                    const valorArrecadado = (prof.lotesVendidos * 20).toFixed(2).replace('.', ',');
-                    return `<tr style="${destaque}"><td class="td-center" style="font-weight: bold; color: var(--petal-pink);">${startIdx + index + 1}º</td><td><strong>${prof.nome}</strong></td><td style="color: var(--dim-grey);">${prof.curso}</td><td class="td-center" style="font-weight: bold; font-size: 1.1rem;">${prof.lotesVendidos}</td><td class="td-center highlight-purple" style="font-weight: bold;">R$ ${valorArrecadado}</td></tr>`;
-                }).join('');
-                renderPaginationUI('pagRankingEducadoresLista', 'rankProfEdu', rankingProf.length, 10, 'atualizarDashboardEducador');
-            }
-
-            let searchBox = `<div style="padding: 10px; position: sticky; top: 0; background: white; border-bottom: 1px solid #eee; z-index: 2;"><input type="text" class="purple-input search-custom-select" placeholder="Pesquisar nome..." style="padding: 0.5rem; font-size: 0.9rem;" onclick="event.stopPropagation()"></div>`;
-            const todosMeusAlunosDB = window.todosEducandosBD.filter(a => textoIgual(a.educadorResponsavel, userName));
-            
-            const selectNomeCadastro = document.getElementById("opcoesNomeEducando");
-            const wrapCad = document.getElementById("wrapperNomeEducando");
-            if(selectNomeCadastro && wrapCad) {
-                let optsCad = searchBox;
-                if (todosMeusAlunosDB.length === 0) { optsCad += '<span class="custom-option" data-value="">Nenhum aluno no banco.</span>'; } 
-                else {
-                    todosMeusAlunosDB.forEach(a => { 
-                        let lblFoto = a.foto.includes('ui-avatars') ? '<span style="color:#a0a0a0; font-size: 0.8rem;">(Sem Foto)</span>' : '<span style="color:var(--petal-pink); font-size: 0.8rem;">(Com Foto)</span>';
-                        optsCad += `<span class="custom-option" data-value="${a.nome}">${a.nome} - ${lblFoto}</span>`; 
+                    educadoresGlobal = data.educadores.map(e => {
+                        let vendidos = 0;
+                        educandosGlobal.forEach(al => { if(textoIgual(al.educadorResponsavel, e['Nome'])) vendidos += al.lotesVendidos.length; });
+                        return { nome: e['Nome'], curso: e['Curso Responsavel'], lotesVendidos: vendidos };
                     });
+
+                    renderizarRankingPagina();
+
+                    const tabelaProf = document.getElementById('tabelaRankingEducadoresPublico');
+                    let rankingProf = [...educadoresGlobal].sort((a, b) => b.lotesVendidos - a.lotesVendidos);
+                    tabelaProf.innerHTML = "";
+                    rankingProf.forEach((prof, index) => {
+                        let posHtml = index === 0 ? '<span class="material-symbols-outlined" style="color:var(--petal-pink); font-size:2rem;">workspace_premium</span>' : `<span style="font-weight:bold; font-size:1.2rem; color:var(--petal-pink);">${index + 1}º</span>`;
+                        const valorArrecadado = (prof.lotesVendidos * 20).toFixed(2).replace('.', ',');
+                        tabelaProf.innerHTML += `<tr>
+                            <td class="td-center">${posHtml}</td>
+                            <td style="white-space: nowrap;"><strong style="font-size:1.1rem; color:var(--obsidian);">${prof.nome}</strong></td>
+                            <td style="color: var(--dim-grey); white-space: nowrap;">${prof.curso}</td>
+                            <td class="td-center highlight-purple" style="font-weight: bold; font-size: 1.2rem;">${prof.lotesVendidos}</td>
+                            <td class="td-center highlight-purple" style="font-weight: bold;">R$ ${valorArrecadado}</td>
+                        </tr>`;
+                    });
+
+                    document.getElementById('loader').style.display = 'none';
+                    document.getElementById('conteudoRanking').style.display = 'block';
                 }
-                selectNomeCadastro.innerHTML = optsCad;
-                ativarEventosSelectCustomizado(wrapCad);
-            }
-
-            const selectAlunoAtribuir = document.getElementById("opcoesAlunoAtribuir");
-            const wrapAttr = document.getElementById("wrapperAlunoAtribuir");
-            if (selectAlunoAtribuir && wrapAttr) {
-                let optsAttr = searchBox;
-                let alunosAtivosLocal = todosMeusAlunosDB.filter(a => a.cadastroAtivo.toLowerCase() === 'sim' || a.lotesVendidos.length > 0 || a.lotesPendentes.length > 0);
-                if(alunosAtivosLocal.length === 0) optsAttr += '<span class="custom-option" data-value="">Nenhum aluno ativo.</span>';
-                else alunosAtivosLocal.forEach(a => { optsAttr += `<span class="custom-option" data-value="${a.nome}">${a.nome}</span>`; });
-                selectAlunoAtribuir.innerHTML = optsAttr;
-                ativarEventosSelectCustomizado(wrapAttr);
-            }
-
-            const listaLotes = document.getElementById("listaLotesCheckboxes");
-            if(listaLotes) {
-                let htmlLotes = '';
-                let lotesEmUso = [];
-                window.todosEducandosBD.forEach(a => { lotesEmUso.push(...a.lotesPendentes); lotesEmUso.push(...a.lotesVendidos); });
-                const meusLotes = window.lotesSedeBD.filter(l => textoIgual(l.educador, userName) || l.educador === '');
-                
-                meusLotes.forEach(l => { 
-                    if(lotesEmUso.includes(l.codigo)) {
-                        htmlLotes += `<label class="checkbox-item-row" style="opacity: 0.5; cursor: not-allowed;"><input type="checkbox" class="roxo-checkbox" value="${l.codigo}" disabled> <span style="color: var(--dim-grey); font-weight: 500; text-decoration: line-through;">${l.codigo}</span> <span style="margin-left:auto; font-size: 0.8rem; color:#a0a0a0;">Em uso</span></label>`; 
-                    } else {
-                        htmlLotes += `<label class="checkbox-item-row"><input type="checkbox" class="roxo-checkbox" value="${l.codigo}"> <span style="color: var(--dim-grey); font-weight: 500;">${l.codigo}</span></label>`; 
-                    }
-                });
-                listaLotes.innerHTML = htmlLotes || '<div style="padding: 15px; color:#a0a0a0; text-align:center;">Nenhum lote liberado para você na Sede.</div>';
-            }
-        };
-
-        const formCadastrarEducando = document.getElementById("formCadastrarEducando");
-        if(formCadastrarEducando) {
-            formCadastrarEducando.addEventListener("submit", (e) => {
-                e.preventDefault();
-                const btn = formCadastrarEducando.querySelector("button[type='submit']");
-                btn.innerText = "Enviando para Nuvem..."; btn.disabled = true;
-
-                const nome = document.getElementById("nomeSelectEducando").value;
-                const turmaTexto = document.getElementById("turmaSelectEducando").value; 
-                if(!nome || !turmaTexto) { btn.disabled = false; btn.innerText = "Ativar Educando"; return window.abrirModalErro("Preencha todos os campos."); }
-                let periodo = (turmaTexto === "Turma 3" || turmaTexto === "Turma 4") ? "Tarde" : "Manhã";
-
-                if(window.fotoFileGlobal && window.tipoCadastroFoto === 'aluno') {
-                    const formData = new FormData(); 
-                    formData.append('file', window.fotoFileGlobal); 
-                    formData.append('upload_preset', CLOUDINARY_PRESET);
-                    
-                    fetch(CLOUDINARY_URL, { method: 'POST', body: formData })
-                    .then(r => r.json()).then(dataImg => {
-                        if(dataImg.secure_url) { salvarEducandoBanco(nome, turmaTexto, periodo, dataImg.secure_url, btn); } 
-                        else { window.abrirModalErro("Falha no Cloudinary"); btn.innerText = "Ativar Educando"; btn.disabled = false; }
-                    }).catch(() => { window.abrirModalErro("Erro de rede."); btn.innerText = "Ativar Educando"; btn.disabled = false; });
-                } else { salvarEducandoBanco(nome, turmaTexto, periodo, "", btn); }
-            });
-        }
-
-        function salvarEducandoBanco(nome, turmaTexto, periodo, fotoUrl, btn) {
-            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'cadastrar_educando', nome: nome, turma: turmaTexto, periodo: periodo, educadorResponsavel: userName, fotoUrl: fotoUrl })
-            }).then(res => res.json()).then(data => {
-                btn.innerText = "Ativar Educando"; btn.disabled = false;
-                if(data.success) {
-                    window.registrarLog("Cadastro", `Ativou e vinculou foto ao aluno ${nome}`);
-                    fecharModal('modalCadastrarEducando'); 
-                    const form = document.getElementById("formCadastrarEducando");
-                    if(form) form.reset();
-                    window.fotoFileGlobal = null; document.getElementById('previewFoto').style.display = 'none'; document.getElementById('iconCamera').style.display = 'block';
-                    window.abrirModalSucesso(data.message); window.carregarDadosDoBanco();
-                } else { window.abrirModalErro(data.message); }
-            }).catch(() => { btn.disabled = false; window.abrirModalErro("Erro de rede."); });
-        }
-
-        const formAtribuirLote = document.getElementById("formAtribuirLote");
-        if(formAtribuirLote) {
-            formAtribuirLote.addEventListener("submit", (e) => {
-                e.preventDefault();
-                const alunoInput = document.getElementById("alunoAtribuirSelect").value;
-                const checkboxesMarcados = document.querySelectorAll('#listaLotesCheckboxes input[type="checkbox"]:checked');
-                const lotesArray = Array.from(checkboxesMarcados).map(cb => cb.value);
-
-                if(!alunoInput || lotesArray.length === 0) return window.abrirModalErro("Selecione o aluno e marque pelo menos um lote.");
-                const btn = formAtribuirLote.querySelector("button[type='submit']");
-                btn.innerText = "Atribuindo..."; btn.disabled = true;
-
-                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'atribuir_lote', nomeAluno: alunoInput, lotes: lotesArray, tipoPessoa: 'Educando', responsavel: userName }) })
-                .then(res => res.json()).then(data => {
-                    btn.innerText = "Confirmar Atribuição"; btn.disabled = false;
-                    if(data.success) {
-                        window.registrarLog("Atribuição de Lote", `Atribuiu os lotes ${lotesArray.join(', ')} para ${alunoInput}`);
-                        fecharModal('modalAtribuirLote'); formAtribuirLote.reset(); window.abrirModalSucesso("Lotes atribuídos!"); window.carregarDadosDoBanco(); 
-                    } else { window.abrirModalErro(data.message); }
-                }).catch(() => { btn.disabled = false; window.abrirModalErro("Erro de rede."); });
-            });
-        }
-    }
-
-    // ==========================================
-    // SEÇÃO DO ADMINISTRADOR (BLINDADA CONTRA CRASHES)
-    // ==========================================
-    const adminPage = document.getElementById("adminPage");
-    if (adminPage) {
-        
-        window.atualizarDashboardsADM = function() {
-            const kpiVendasEducandos = document.getElementById('kpiVendasEducandos');
-            const kpiVendasEquipe = document.getElementById('kpiVendasEquipe');
-            const kpiVendasParceiros = document.getElementById('kpiVendasParceiros');
-            const kpiCaixaPix = document.getElementById('kpiCaixaPix');
-            const kpiCaixaDinheiro = document.getElementById('kpiCaixaDinheiro');
-            const kpiVendasReaisGlobal = document.getElementById('kpiVendasReaisGlobal');
-            const kpiProjecaoGlobal = document.getElementById('kpiProjecaoGlobal');
-            const kpiParceirosArrecadado = document.getElementById('kpiParceirosArrecadado');
-            const kpiParceirosProjetado = document.getElementById('kpiParceirosProjetado');
-
-            let totalPendentes = 0, totalVendidos = 0; let ativos = 0; let inativos = 0; 
-            let alunosNormais = window.todosEducandosBD.filter(a => a.turma !== 'Equipe');
-            let totalAlunos = alunosNormais.length;
-
-            alunosNormais.forEach(a => { 
-                totalPendentes += a.lotesPendentes.length; totalVendidos += a.lotesVendidos.length; 
-                if(a.turma !== 'Equipe') {
-                    if(a.cadastroAtivo === 'Sim' || a.lotesVendidos.length > 0 || a.lotesPendentes.length > 0) ativos++; else inativos++;
-                }
-            });
-
-            let vEdu = 0, vEquipe = 0, vParc = 0;
-            let vPix = 0, vDin = 0;
-
-            window.caixaGlobalBD.forEach(tx => {
-                let val = parseFloat(tx['Valor']) || parseFloat(tx['Valor_Total']) || parseFloat(tx['Valor Recebido']) || 0;
-                let cat = tx['Categoria'] || 'Educando';
-                let m = String(tx['Metodo_Pagamento'] || tx['Método'] || tx['Metodo'] || tx['Forma_Pagamento'] || '').toUpperCase();
-
-                if(cat === 'Equipe') vEquipe += val;
-                else if(cat === 'Parceiro') vParc += val;
-                else vEdu += val;
-
-                if(m.includes('PIX')) vPix += val;
-                else if(m.includes('DINHEIRO') || m.includes('ESPECIE') || m.includes('MISTO')) vDin += val;
-            });
-
-            const vVendas = vPix + vDin; const vPendentes = totalPendentes * 20.00;
-
-            let pendentesParceiros = 0;
-            window.todosParceirosBD.forEach(p => { pendentesParceiros += p.lotesPendentes.length; });
-
-            if(kpiVendasEducandos) kpiVendasEducandos.innerText = `R$ ${vEdu.toFixed(2).replace('.', ',')}`;
-            if(kpiVendasEquipe) kpiVendasEquipe.innerText = `R$ ${vEquipe.toFixed(2).replace('.', ',')}`;
-            if(kpiVendasParceiros) kpiVendasParceiros.innerText = `R$ ${vParc.toFixed(2).replace('.', ',')}`;
-            if(kpiVendasReaisGlobal) kpiVendasReaisGlobal.innerText = `R$ ${vVendas.toFixed(2).replace('.', ',')}`;
-            if(kpiCaixaPix) kpiCaixaPix.innerText = `R$ ${vPix.toFixed(2).replace('.', ',')}`;
-            if(kpiCaixaDinheiro) kpiCaixaDinheiro.innerText = `R$ ${vDin.toFixed(2).replace('.', ',')}`;
-            if(kpiProjecaoGlobal) kpiProjecaoGlobal.innerText = `R$ ${vPendentes.toFixed(2).replace('.', ',')}`;
-            
-            if(kpiParceirosArrecadado) kpiParceirosArrecadado.innerText = `R$ ${vParc.toFixed(2).replace('.', ',')}`;
-            if(kpiParceirosProjetado) kpiParceirosProjetado.innerText = `R$ ${(pendentesParceiros * 20).toFixed(2).replace('.', ',')}`;
-
-            if(document.getElementById('kpiAtivos')) document.getElementById('kpiAtivos').innerText = ativos;
-            if(document.getElementById('kpiInativos')) document.getElementById('kpiInativos').innerText = inativos;
-            if(document.getElementById('kpiAdesao')) document.getElementById('kpiAdesao').innerText = totalAlunos > 0 ? `${Math.round((ativos/totalAlunos)*100)}%` : '0%';
-
-            let maiorEstoqueNome = "Nenhum"; let maiorEstoqueQtd = -1;
-            window.mockEducadoresBD.forEach(ed => {
-                let est = ed.lotesRetiradosSede - ed.lotesVendidos - ed.lotesPendentes;
-                if (est > maiorEstoqueQtd) { maiorEstoqueQtd = est; maiorEstoqueNome = ed.nome; }
-            });
-            if(document.getElementById('kpiMaiorEstoque')) document.getElementById('kpiMaiorEstoque').innerHTML = `<strong>${maiorEstoqueNome}</strong> <br><span style="font-size: 1rem; color: var(--dim-grey); font-weight: normal;">${maiorEstoqueQtd} lotes disponíveis</span>`;
-
-            const ctxEst = document.getElementById('estoqueChart');
-            if (ctxEst && ctxEst.offsetParent !== null) { 
-                if (!estoqueChartInstAdm) estoqueChartInstAdm = new Chart(ctxEst.getContext('2d'), { type: 'doughnut', data: { labels: ['Válidos', 'Pendentes', 'Estoque'], datasets: [{ data: [totalVendidos, totalPendentes, 440], backgroundColor: ['#BC68A1', '#F4B841', '#e0e0e0'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false } });
-                else { estoqueChartInstAdm.data.datasets[0].data = [totalVendidos, totalPendentes, 440]; estoqueChartInstAdm.update(); }
-            }
-            const ctxFin = document.getElementById('financeiroChart');
-            if (ctxFin && ctxFin.offsetParent !== null) {
-                if (!financeiroChartInstAdm) financeiroChartInstAdm = new Chart(ctxFin.getContext('2d'), { type: 'bar', data: { labels: ['Caixa Realizado', 'Projeção Restante'], datasets: [{ label: 'Valor em R$', data: [vVendas, vPendentes], backgroundColor: ['#BC68A1', '#F4B841'], borderRadius: 6 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } } });
-                else { financeiroChartInstAdm.data.datasets[0].data = [vVendas, vPendentes]; financeiroChartInstAdm.update(); }
-            }
-
-            window.renderRankingAlunosAdm();
-            window.renderRankingEquipeAdm();
-            window.renderParceirosListaPaginado();
-            window.renderGestaoLotesPaginado();
-            window.renderPendentesAdminPaginado();
-            window.renderLogsPaginado();
-            window.renderLivroCaixaPaginado();
-
-            const tabelaRankingEducadoresADM = document.getElementById('tabelaRankingEducadoresADM');
-            if(tabelaRankingEducadoresADM) {
-                const nomesExcluidos = ['jhersyka', 'debora', 'bruna'];
-                let rankingProf = [...window.mockEducadoresBD].filter(e => {
-                    let nomeLimpo = e.nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-                    return !nomesExcluidos.includes(nomeLimpo);
-                }).sort((a, b) => b.lotesVendidos - a.lotesVendidos);
-
-                const startIdx = (window.pages.rankProfAdm.current - 1) * 10;
-                const paginated = rankingProf.slice(startIdx, startIdx + 10);
-
-                tabelaRankingEducadoresADM.innerHTML = paginated.map((prof, index) => {
-                    const valorArrecadado = (prof.lotesVendidos * 20).toFixed(2).replace('.', ',');
-                    return `<tr><td class="td-center" style="font-weight: bold; color: var(--petal-pink);">${startIdx + index + 1}º</td><td><strong>${prof.nome}</strong></td><td style="color: var(--dim-grey);">${prof.curso}</td><td class="td-center" style="font-weight: bold; font-size: 1.1rem;">${prof.lotesVendidos}</td><td class="td-center highlight-purple" style="font-weight: bold;">R$ ${valorArrecadado}</td></tr>`;
-                }).join('');
-                renderPaginationUI('pagRankingEducadores', 'rankProfAdm', rankingProf.length, 10, 'atualizarDashboardsADM');
-            }
-
-            let searchBox = `<div style="padding: 10px; position: sticky; top: 0; background: white; border-bottom: 1px solid #eee; z-index: 2;"><input type="text" class="purple-input search-custom-select" placeholder="Pesquisar..." style="padding: 0.5rem; font-size: 0.9rem;" onclick="event.stopPropagation()"></div>`;
-            const listaSede = document.getElementById("listaLotesSede");
-            if(listaSede) {
-                let htmlSede = '';
-                let lotesEmUso = [];
-                window.todosEducandosBD.forEach(a => { lotesEmUso.push(...a.lotesPendentes); lotesEmUso.push(...a.lotesVendidos); });
-                window.todosParceirosBD.forEach(p => { lotesEmUso.push(...p.lotesPendentes); lotesEmUso.push(...p.lotesVendidos); });
-
-                window.lotesSedeBD.forEach(l => {
-                    const respInfo = l.educador ? ` (Com ${l.educador})` : ' (Na Sede)';
-                    if(lotesEmUso.includes(l.codigo)) {
-                        htmlSede += `<label class="checkbox-item-row" style="opacity: 0.5; cursor: not-allowed;"><input type="checkbox" class="roxo-checkbox" value="${l.codigo}" disabled> <span style="color: var(--dim-grey); font-weight: 500; text-decoration: line-through;">${l.codigo}</span> <span style="margin-left:auto; font-size: 0.8rem; color:#a0a0a0;">Em uso</span></label>`;
-                    } else {
-                        htmlSede += `<label class="checkbox-item-row"><input type="checkbox" class="roxo-checkbox" value="${l.codigo}"> <span style="color: var(--dim-grey); font-weight: 500;">${l.codigo}</span> <span style="margin-left:auto; font-size: 0.8rem; color:var(--petal-pink);">${respInfo}</span></label>`;
-                    }
-                });
-                listaSede.innerHTML = htmlSede || '<div style="padding: 15px; color:#a0a0a0; text-align:center;">Nenhum lote na base.</div>';
-            }
-
-            const listaLotesParceiros = document.getElementById("listaLotesParceirosCheckboxes");
-            if(listaLotesParceiros) {
-                let htmlLotes = '';
-                let lotesEmUso = [];
-                window.todosParceirosBD.forEach(p => { lotesEmUso.push(...p.lotesPendentes); lotesEmUso.push(...p.lotesVendidos); });
-                window.todosEducandosBD.forEach(a => { lotesEmUso.push(...a.lotesPendentes); lotesEmUso.push(...a.lotesVendidos); }); 
-                const lotesFiltrados = window.lotesSedeBD.filter(l => l.codigo.toUpperCase().includes('PARC'));
-                lotesFiltrados.forEach(l => {
-                    if(lotesEmUso.includes(l.codigo)) {
-                        htmlLotes += `<label class="checkbox-item-row" style="opacity: 0.5;"><input type="checkbox" class="roxo-checkbox" disabled> <span style="text-decoration: line-through;">${l.codigo}</span> <span style="margin-left:auto; font-size:0.8rem; color:#a0a0a0;">Em uso</span></label>`;
-                    } else {
-                        htmlLotes += `<label class="checkbox-item-row"><input type="checkbox" class="roxo-checkbox" value="${l.codigo}"> <span>${l.codigo}</span></label>`;
-                    }
-                });
-                listaLotesParceiros.innerHTML = htmlLotes || '<div style="padding:15px; text-align:center; color:#a0a0a0;">Nenhum lote PARC livre na Sede.</div>';
-            }
-
-            const selectParceiroAttr = document.getElementById("opcoesParceiroAtribuir");
-            const wrapParcAttr = document.getElementById("wrapperParceiroAtribuir");
-            if(selectParceiroAttr && wrapParcAttr) {
-                let opts = searchBox;
-                if(window.todosParceirosBD.length === 0) opts += '<span class="custom-option" data-value="">Nenhum parceiro cadastrado.</span>';
-                else window.todosParceirosBD.forEach(p => { opts += `<span class="custom-option" data-value="${p.nome}">${p.nome}</span>`; });
-                selectParceiroAttr.innerHTML = opts;
-                ativarEventosSelectCustomizado(wrapParcAttr);
-            }
-
-            const listaLotesEquipe = document.getElementById("listaLotesEquipeCheckboxes");
-            if(listaLotesEquipe) {
-                let htmlLotesEquipe = '';
-                let lotesEmUsoEquipe = [];
-                window.todosEducandosBD.forEach(a => { lotesEmUsoEquipe.push(...a.lotesPendentes); lotesEmUsoEquipe.push(...a.lotesVendidos); });
-                window.todosParceirosBD.forEach(p => { lotesEmUsoEquipe.push(...p.lotesPendentes); lotesEmUsoEquipe.push(...p.lotesVendidos); });
-
-                const lotesEquipeFiltrados = window.lotesSedeBD.filter(l => l.codigo.toUpperCase().includes('EQU'));
-                lotesEquipeFiltrados.forEach(l => {
-                    if(lotesEmUsoEquipe.includes(l.codigo)) {
-                        htmlLotesEquipe += `<label class="checkbox-item-row" style="opacity: 0.5;"><input type="checkbox" class="roxo-checkbox" disabled> <span style="text-decoration: line-through;">${l.codigo}</span> <span style="margin-left:auto; font-size:0.8rem; color:#a0a0a0;">Em uso</span></label>`;
-                    } else {
-                        htmlLotesEquipe += `<label class="checkbox-item-row"><input type="checkbox" class="roxo-checkbox" value="${l.codigo}"> <span>${l.codigo}</span></label>`;
-                    }
-                });
-                listaLotesEquipe.innerHTML = htmlLotesEquipe || '<div style="padding:15px; text-align:center; color:#a0a0a0;">Nenhum lote EQU vago na Sede.</div>';
-            }
-
-            const selectEquipeAttr = document.getElementById("opcoesEquipeAtribuir");
-            const wrapEquipeAttr = document.getElementById("wrapperEquipeAtribuir");
-            if(selectEquipeAttr && wrapEquipeAttr) {
-                let optsEquipe = searchBox;
-                let equipeDB = window.todosEducandosBD.filter(a => a.turma === 'Equipe');
-                if(equipeDB.length === 0) optsEquipe += '<span class="custom-option" data-value="">Nenhum colaborador cadastrado.</span>';
-                else equipeDB.forEach(c => { optsEquipe += `<span class="custom-option" data-value="${c.nome}">${c.nome}</span>`; });
-                selectEquipeAttr.innerHTML = optsEquipe;
-                ativarEventosSelectCustomizado(wrapEquipeAttr);
-            }
-
-            const opcoesEducador = document.getElementById("opcoesEducadorDestino");
-            const wrapEdu = document.getElementById("wrapperEducadorDestino");
-            if(opcoesEducador && wrapEdu) {
-                let optsEdu = searchBox;
-                optsEdu += '<span class="custom-option" data-value="Sede">Devolver para Sede</span>';
-                window.mockEducadoresBD.forEach(e => { optsEdu += `<span class="custom-option" data-value="${e.nome}">${e.nome}</span>`; });
-                opcoesEducador.innerHTML = optsEdu;
-                ativarEventosSelectCustomizado(wrapEdu);
-            }
-        };
-
-        const formTransferirLote = document.getElementById("formTransferirLote");
-        if(formTransferirLote) {
-            formTransferirLote.addEventListener("submit", (e) => {
-                e.preventDefault();
-                const dest = document.getElementById("educadorDestinoVal").value;
-                const checkboxes = document.querySelectorAll('#listaLotesSede input[type="checkbox"]:checked');
-                const lotesSel = Array.from(checkboxes).map(cb => cb.value);
-
-                if(!dest || lotesSel.length === 0) return window.abrirModalErro("Selecione os lotes e o destino.");
-                const btn = formTransferirLote.querySelector("button[type='submit']");
-                btn.innerText = "Transferindo..."; btn.disabled = true;
-
-                window.registrarLog("Transferência (Sede)", `Moveu lotes ${lotesSel.join(', ')} para o destino: ${dest}`);
-                lotesSel.forEach(cod => { let l = window.lotesSedeBD.find(x => x.codigo === cod); if(l) l.educador = (dest === 'Sede' ? '' : dest); });
-                
-                fecharModal('modalTransferirLote'); window.abrirModalSucesso("Transferência realizada!");
-                window.atualizarDashboardsADM(); formTransferirLote.reset();
-
-                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'transferir_lotes', lotes: lotesSel, educadorDestino: dest === 'Sede' ? '' : dest }) })
-                .then(() => { btn.innerText = "Confirmar Transferência"; btn.disabled = false; })
-                .catch(err => { console.error(err); btn.disabled = false; });
+            }).catch(err => {
+                document.getElementById('loader').innerText = "Erro ao carregar os dados ao vivo. Tente atualizar a página.";
             });
         }
         
-        const formCadastrarParceiro = document.getElementById("formCadastrarParceiro");
-        if(formCadastrarParceiro) {
-            formCadastrarParceiro.addEventListener("submit", (e) => {
-                e.preventDefault();
-                const btn = formCadastrarParceiro.querySelector("button[type='submit']");
-                btn.innerText = "Salvando..."; btn.disabled = true;
-                const nome = document.getElementById("nomeParceiroInput").value;
-                
-                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'cadastrar_parceiro', nome, cartela: "" })
-                }).then(res => res.json()).then(data => {
-                    btn.innerText = "Salvar Parceiro"; btn.disabled = false;
-                    if(data.success) {
-                        window.registrarLog("Cadastro Parceiro", `Cadastrou parceiro comercial ${nome}`);
-                        fecharModal('modalCadastrarParceiro'); formCadastrarParceiro.reset();
-                        window.abrirModalSucesso(data.message); window.carregarDadosDoBanco();
-                    } else window.abrirModalErro(data.message);
-                }).catch(() => { btn.disabled = false; btn.innerText = "Salvar Parceiro"; });
-            });
-        }
-
-        const formAtribuirLoteParceiro = document.getElementById("formAtribuirLoteParceiro");
-        if(formAtribuirLoteParceiro) {
-            formAtribuirLoteParceiro.addEventListener("submit", (e) => {
-                e.preventDefault();
-                const nomeInput = document.getElementById("parceiroAtribuirSelect").value;
-                const checkboxesMarcados = document.querySelectorAll('#listaLotesParceirosCheckboxes input[type="checkbox"]:checked');
-                const lotesArray = Array.from(checkboxesMarcados).map(cb => cb.value);
-
-                if(!nomeInput || lotesArray.length === 0) return window.abrirModalErro("Selecione o parceiro e marque pelo menos um lote PARC.");
-                const btn = formAtribuirLoteParceiro.querySelector("button[type='submit']");
-                btn.innerText = "Atribuindo..."; btn.disabled = true;
-
-                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'atribuir_lote_parceiro', nome: nomeInput, lotes: lotesArray, responsavel: userName }) })
-                .then(res => res.json()).then(data => {
-                    btn.innerText = "Confirmar Atribuição"; btn.disabled = false;
-                    if(data.success) {
-                        window.registrarLog("Atribuição Parceiro", `Atribuiu lotes ${lotesArray.join(', ')} para o parceiro ${nomeInput}`);
-                        fecharModal('modalAtribuirLoteParceiro'); formAtribuirLoteParceiro.reset(); 
-                        window.abrirModalSucesso("Lotes PARC atribuídos com sucesso!"); window.carregarDadosDoBanco(); 
-                    } else window.abrirModalErro(data.message);
-                }).catch(() => { btn.disabled = false; btn.innerText = "Confirmar Atribuição"; });
-            });
-        }
-
-        const formCadastrarColaborador = document.getElementById("formCadastrarColaborador");
-        if(formCadastrarColaborador) {
-            formCadastrarColaborador.addEventListener("submit", (e) => {
-                e.preventDefault();
-                const btn = formCadastrarColaborador.querySelector("button[type='submit']");
-                btn.innerText = "Enviando para Nuvem..."; btn.disabled = true;
-                const nome = document.getElementById("nomeColaboradorInput").value;
-
-                if(window.fotoFileGlobal && window.tipoCadastroFoto === 'colaborador') {
-                    const formData = new FormData(); 
-                    formData.append('file', window.fotoFileGlobal); 
-                    formData.append('upload_preset', CLOUDINARY_PRESET);
-                    
-                    fetch(CLOUDINARY_URL, { method: 'POST', body: formData })
-                    .then(r => r.json()).then(dataImg => {
-                        if(dataImg.secure_url) { salvarColaboradorBanco(nome, dataImg.secure_url, btn); } 
-                        else { window.abrirModalErro("Falha na imagem"); btn.innerText = "Salvar Colaborador"; btn.disabled = false; }
-                    }).catch(() => { window.abrirModalErro("Erro de rede."); btn.innerText = "Salvar Colaborador"; btn.disabled = false; });
-                } else { salvarColaboradorBanco(nome, "", btn); }
-            });
-        }
-
-        function salvarColaboradorBanco(nome, fotoUrl, btn) {
-            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'cadastrar_colaborador_vendedor', nome: nome, cargo: 'Colaborador', fotoUrl: fotoUrl })
-            }).then(res => res.json()).then(data => {
-                btn.innerText = "Salvar Colaborador"; btn.disabled = false;
-                if(data.success) {
-                    window.registrarLog("Cadastro Colaborador", `Cadastrou o colaborador de vendas diretas ${nome}`);
-                    fecharModal('modalCadastrarColaborador'); 
-                    const form = document.getElementById("formCadastrarColaborador");
-                    if(form) form.reset();
-                    window.fotoFileGlobal = null; 
-                    if(document.getElementById('previewFotoColaborador')) document.getElementById('previewFotoColaborador').style.display = 'none'; 
-                    if(document.getElementById('iconCameraColaborador')) document.getElementById('iconCameraColaborador').style.display = 'block';
-                    window.abrirModalSucesso(data.message); window.carregarDadosDoBanco();
-                } else { window.abrirModalErro(data.message); }
-            }).catch(() => { btn.disabled = false; window.abrirModalErro("Erro de rede."); });
-        }
-
-        const formAtribuirLoteEquipe = document.getElementById("formAtribuirLoteEquipe");
-        if(formAtribuirLoteEquipe) {
-            formAtribuirLoteEquipe.addEventListener("submit", (e) => {
-                e.preventDefault();
-                const nomeInput = document.getElementById("equipeAtribuirSelect").value;
-                const checkboxesMarcados = document.querySelectorAll('#listaLotesEquipeCheckboxes input[type="checkbox"]:checked');
-                const lotesArray = Array.from(checkboxesMarcados).map(cb => cb.value);
-
-                if(!nomeInput || lotesArray.length === 0) return window.abrirModalErro("Selecione o colaborador e marque pelo menos um lote EQU.");
-                const btn = formAtribuirLoteEquipe.querySelector("button[type='submit']");
-                btn.innerText = "Atribuindo..."; btn.disabled = true;
-
-                fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'atribuir_lote', nomeAluno: nomeInput, lotes: lotesArray, tipoPessoa: 'Equipe', responsavel: userName }) })
-                .then(res => res.json()).then(data => {
-                    btn.innerText = "Confirmar Atribuição"; btn.disabled = false;
-                    if(data.success) {
-                        window.registrarLog("Atribuição Equipe", `Atribuiu lotes ${lotesArray.join(', ')} para o colaborador ${nomeInput}`);
-                        fecharModal('modalAtribuirLoteEquipe'); formAtribuirLoteEquipe.reset(); 
-                        window.abrirModalSucesso("Lotes EQU atribuídos com sucesso!"); window.carregarDadosDoBanco(); 
-                    } else window.abrirModalErro(data.message);
-                }).catch(() => { btn.disabled = false; window.abrirModalErro("Erro de rede."); });
-            });
-        }
-    }
-
-    // ==========================================
-    // MODAIS E DISPARO DE TRANSAÇÕES UNIFICADAS
-    // ==========================================
-    window.abrirModal = function(id) { document.getElementById(id).classList.add('active'); }
-    window.fecharModal = function(id) { document.getElementById(id).classList.remove('active'); }
-    window.abrirModalSucesso = function(txt) { document.getElementById('textoModalSucesso').innerText = txt; abrirModal('modalSucesso'); }
-    window.abrirModalErro = function(txt) { const pErro = document.getElementById('textoModalErro'); if(pErro) pErro.innerText = txt; abrirModal('modalErro'); }
-    window.toggleMisto = function(mostrar) { document.getElementById('camposMisto').style.display = mostrar ? 'flex' : 'none'; }
-
-    window.abrirDetalhesAluno = function(idx, tipo = 'Educando') {
-        window.alunoEmFocoIdx = idx; 
-        window.tipoPessoaEmFoco = tipo;
-        const isAdmin = document.getElementById('adminPage') !== null;
-        
-        const pessoa = (tipo === 'Parceiro') ? window.todosParceirosBD[idx] : window.todosEducandosBD[idx]; 
-        
-        const elFoto = document.getElementById('detalheFoto'); if(elFoto) elFoto.src = pessoa.foto;
-        const elNome = document.getElementById('detalheNome'); if(elNome) elNome.innerText = pessoa.nome;
-        
-        const elTurma = document.getElementById('detalheTurma'); 
-        if(elTurma) {
-            if (tipo === 'Parceiro') elTurma.innerText = `Comércio - Parceiro`;
-            else if (pessoa.turma === 'Equipe') elTurma.innerText = `Vendas Diretas - Equipe`;
-            else elTurma.innerText = `${pessoa.curso} - ${pessoa.turma}`;
-        }
-        
-        const recompensas = calcularRecompensas(pessoa.lotesVendidos.length);
-        const elFone = document.getElementById('detalheFone'); if(elFone) elFone.innerText = recompensas.fone;
-        const elCartelas = document.getElementById('detalheCartelasGanhas'); if(elCartelas) elCartelas.innerText = recompensas.cartelas;
-        
-        let pendentesEntrega = recompensas.cartelas - (pessoa.cartelasEntregues || 0);
-        const boxRetirar = document.getElementById('boxRetirarCartela');
-        if (boxRetirar) {
-            if (pendentesEntrega > 0 && !isAdmin) { 
-                boxRetirar.style.display = 'block';
-                document.getElementById('detalheCartelasPendentes').innerText = pendentesEntrega;
-                document.getElementById('btnRetirarCartela').onclick = () => window.registrarRetiradaCartela(idx);
-            } else { boxRetirar.style.display = 'none'; }
-        }
-
-        const elVendidos = document.getElementById('detalheQtdVendidos'); if(elVendidos) elVendidos.innerText = pessoa.lotesVendidos.length;
-        const elPendentes = document.getElementById('detalheQtdPendentes'); if(elPendentes) elPendentes.innerText = pessoa.lotesPendentes.length;
-        const elDevolvidos = document.getElementById('detalheQtdDevolvidos'); if(elDevolvidos) elDevolvidos.innerText = pessoa.lotesDevolvidos ? pessoa.lotesDevolvidos.length : 0;
-        
-        const badgeVendidos = pessoa.lotesVendidos.length ? pessoa.lotesVendidos.map(l => `<span class="badge-lote">${l}</span>`).join('') : '<span class="badge-lote vazio">Nenhum</span>';
-        let badgePendentes = '<span class="badge-lote vazio">Nenhum</span>';
-        if(pessoa.lotesPendentes.length) {
-            if(isAdmin) {
-                const cliquePend = document.getElementById('msgCliquePendente'); if(cliquePend) cliquePend.style.display = 'block';
-                badgePendentes = pessoa.lotesPendentes.map(l => `<span class="badge-lote" style="border: 1px dashed var(--sunflower-gold); cursor:pointer;" title="Gerenciar Lote" onclick="abrirAcaoLote('${l}', ${idx}, '${tipo}'); event.stopPropagation();">${l} ⚙️</span>`).join('');
-            } else {
-                const cliquePend = document.getElementById('msgCliquePendente'); if(cliquePend) cliquePend.style.display = 'none';
-                badgePendentes = pessoa.lotesPendentes.map(l => `<span class="badge-lote">${l}</span>`).join('');
-            }
-        } else {
-            const cliquePend = document.getElementById('msgCliquePendente'); if(cliquePend) cliquePend.style.display = 'none';
-        }
-        
-        const badgeDevolvidos = pessoa.lotesDevolvidos && pessoa.lotesDevolvidos.length ? pessoa.lotesDevolvidos.map(l => `<span class="badge-lote">${l}</span>`).join('') : '<span class="badge-lote vazio">Nenhum</span>';
-        
-        const bV = document.getElementById('detalheBadgesVendidos'); if(bV) bV.innerHTML = badgeVendidos;
-        const bP = document.getElementById('detalheBadgesPendentes'); if(bP) bP.innerHTML = badgePendentes;
-        const bD = document.getElementById('detalheBadgesDevolvidos'); if(bD) bD.innerHTML = badgeDevolvidos;
-        
-        abrirModal('modalDetalhesAluno');
-    }
-
-    window.registrarRetiradaCartela = function(idx) {
-        const aluno = window.todosEducandosBD[idx];
-        aluno.cartelasEntregues += 1; 
-        window.registrarLog("Retirada Cartela Extra", `O Aluno ${aluno.nome} retirou +1 cartela física.`);
-        abrirDetalhesAluno(idx); 
-        fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'entregar_cartela', nomeAluno: aluno.nome }) }).catch(err => console.error(err));
-    }
-
-    window.abrirAcaoLote = function(lote, idxAluno, tipo = 'Educando') {
-        if(window.lotesValidadosNestaSessao.has(lote)) {
-            return window.abrirModalErro("Esse Lote já está faturado ou processado!");
-        }
-        const pessoa = (tipo === 'Parceiro') ? window.todosParceirosBD[idxAluno] : window.todosEducandosBD[idxAluno];
-        document.getElementById('acaoLoteNome').innerText = lote;
-        document.getElementById('acaoLoteAluno').innerText = pessoa.nome;
-        document.getElementById('acaoLoteInput').value = lote;
-        document.getElementById('acaoAlunoIdxInput').value = idxAluno;
-        document.getElementById('modalAcaoLote').setAttribute('data-tipo', tipo);
-        
-        const radioPix = document.querySelector('input[name="formaPagamentoLote"][value="PIX"]');
-        if(radioPix) radioPix.checked = true;
-        window.toggleMisto(false); document.getElementById('valorPixMisto').value = ''; document.getElementById('valorDinMisto').value = '';
-
-        fecharModal('modalDetalhesAluno'); abrirModal('modalAcaoLote');
-    }
-
-    window.confirmarVendaLote = function() {
-        const lote = document.getElementById('acaoLoteInput').value;
-        const idx = document.getElementById('acaoAlunoIdxInput').value;
-        const tipo = document.getElementById('modalAcaoLote').getAttribute('data-tipo') || 'Educando';
-        const pessoa = (tipo === 'Parceiro') ? window.todosParceirosBD[idx] : window.todosEducandosBD[idx];
-        const formaPagamento = document.querySelector('input[name="formaPagamentoLote"]:checked').value;
-        let vPix = 0, vDin = 0;
-
-        if (formaPagamento === "PIX") { vPix = 20.00; } 
-        else if (formaPagamento === "Dinheiro") { vDin = 20.00; } 
-        else {
-            vPix = parseFloat(document.getElementById('valorPixMisto').value) || 0;
-            vDin = parseFloat(document.getElementById('valorDinMisto').value) || 0;
-            if (vPix + vDin !== 20.00) return window.abrirModalErro(`A soma deve dar R$ 20,00.`);
-        }
-
-        if(window.lotesValidadosNestaSessao.has(lote)) {
-            fecharModal('modalAcaoLote');
-            return window.abrirModalErro("Você já faturou este lote. Aguarde a sincronização.");
-        }
-        window.lotesValidadosNestaSessao.add(lote); 
-        
-        // INJEÇÃO LOCAL NO LIVRO CAIXA EM TEMPO REAL
-        const idTxAtual = "TX-" + new Date().getTime();
-        const dataHoraAtual = new Date().toLocaleString('pt-BR');
-        if (vPix > 0) window.caixaGlobalBD.push({ 'Data_Hora': dataHoraAtual, 'ID_Transacao': idTxAtual, 'Lote': lote, 'Educando': pessoa.nome, 'Valor': vPix, 'Metodo_Pagamento': 'PIX', 'Responsavel': userName, 'Categoria': tipo });
-        if (vDin > 0) window.caixaGlobalBD.push({ 'Data_Hora': dataHoraAtual, 'ID_Transacao': idTxAtual, 'Lote': lote, 'Educando': pessoa.nome, 'Valor': vDin, 'Metodo_Pagamento': 'Dinheiro', 'Responsavel': userName, 'Categoria': tipo });
-
-        window.caixaGlobal.pixReais += vPix; window.caixaGlobal.dinReais += vDin;
-        pessoa.lotesPendentes = pessoa.lotesPendentes.filter(l => l !== lote);
-        pessoa.lotesVendidos.push(lote);
-        
-        fecharModal('modalAcaoLote'); window.abrirModalSucesso("Venda confirmada!"); 
-        window.registrarLog("Validação Venda", `Lote ${lote} validado para ${pessoa.nome} (${tipo}). Pagamento: R$ ${vPix+vDin} via ${formaPagamento}`);
-        if(document.getElementById("adminPage")) window.atualizarDashboardsADM(); 
-        if(document.getElementById("educadorPage")) window.atualizarDashboardEducador();
-
-        fetch(SCRIPT_URL, {
-            method: 'POST', body: JSON.stringify({ action: 'transacao_lote', acaoLote: 'venda', lote: lote, nome: pessoa.nome, nomeAluno: pessoa.nome, tipoPessoa: tipo, vPix: vPix, vDin: vDin, responsavel: userName })
-        }).catch(err => console.error("Erro", err));
-    }
-
-    window.confirmarDevolucaoLote = function() {
-        const lote = document.getElementById('acaoLoteInput').value;
-        const idx = document.getElementById('acaoAlunoIdxInput').value;
-        const tipo = document.getElementById('modalAcaoLote').getAttribute('data-tipo') || 'Educando';
-        const pessoa = (tipo === 'Parceiro') ? window.todosParceirosBD[idx] : window.todosEducandosBD[idx];
-        
-        if(window.lotesValidadosNestaSessao.has(lote)) {
-            fecharModal('modalAcaoLote');
-            return window.abrirModalErro("Você já processou este lote. Aguarde a sincronização.");
-        }
-        window.lotesValidadosNestaSessao.add(lote);
-
-        pessoa.lotesPendentes = pessoa.lotesPendentes.filter(l => l !== lote);
-        if(!pessoa.lotesDevolvidos) pessoa.lotesDevolvidos = [];
-        pessoa.lotesDevolvidos.push(lote);
-        
-        fecharModal('modalAcaoLote'); window.abrirModalSucesso("Lote devolvido com sucesso!"); 
-        window.registrarLog("Devolução Lote", `Lote ${lote} devolvido por ${pessoa.nome} (${tipo})`);
-        if(document.getElementById("adminPage")) window.atualizarDashboardsADM();
-        if(document.getElementById("educadorPage")) window.atualizarDashboardEducador();
-
-        fetch(SCRIPT_URL, {
-            method: 'POST', body: JSON.stringify({ action: 'transacao_lote', acaoLote: 'devolucao', lote: lote, nome: pessoa.nome, nomeAluno: pessoa.nome, tipoPessoa: tipo, responsavel: userName })
-        }).catch(err => console.error("Erro", err));
-    }
-
-    if (document.getElementById("adminPage") || document.getElementById("educadorPage")) {
-        window.carregarDadosDoBanco();
-    }
-});
+        sincronizarPublico();
+    </script>
+</body>
+</html>

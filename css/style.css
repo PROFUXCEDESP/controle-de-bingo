@@ -22,7 +22,12 @@
   --radius-lg: 20px;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* { margin: 0; padding: 0; 
+   box-sizing: border-box;
+   -webkit-user-select: none; /* Safari */
+    -ms-user-select: none;     /* IE 10 and IE 11 */
+    user-select: none;         /* Padrão moderno */
+    outline: none;             /* Remove o contorno azul de foco em botões */ }
 body { font-family: var(--font-main); background-color: var(--bg-color); color: var(--dim-grey); }
 ::selection { background-color: var(--petal-pink); color: var(--white); }
 body:not(.dashboard-body) { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
@@ -527,13 +532,51 @@ select.select-nativo { appearance: none; background-image: url("data:image/svg+x
 
 
 /* PAGINAÇÃO DISCRETA */
-.discrete-pagination { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee; }
+.discrete-pagination { width:100%; display: flex!important; align-items: center!important; justify-content: center !important; gap: 10px; margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee; };
 .btn-page-discrete { background: #fcf9fc; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; font-size: 1.2rem; color: var(--petal-pink); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; transition: 0.2s; font-weight: bold; }
 .btn-page-discrete:hover:not(:disabled) { border-color: var(--petal-pink); background: white; transform: scale(1.05); }
 .btn-page-discrete:disabled { color: #ccc; border-color: #eee; cursor: not-allowed; transform: none; }
 .page-input-discrete { width: 45px; height: 32px; padding: 4px; text-align: center; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; color: var(--dim-grey); outline: none; }
 .page-input-discrete:focus { border-color: var(--petal-pink); }
 .data-table th, .data-table td { white-space: nowrap !important; }
+
+/* Força o estilo dos botões de paginação */
+.btn-page-discrete {
+    all: unset; /* Remove qualquer estilização herdada */
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    padding: 0 10px !important;
+    margin: 0 5px !important;
+    border: 1px solid #ccc !important;
+    border-radius: 6px !important;
+    background-color: #ffffff !important;
+    color: var(--petal-pink) !important;
+    font-weight: bold !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+}
+
+/* Hover */
+.btn-page-discrete:hover:not(:disabled) {
+    background-color: var(--petal-pink) !important;
+    color: #ffffff !important;
+    border-color: var(--petal-pink) !important;
+}
+
+/* Desabilitado */
+.btn-page-discrete:disabled {
+    background-color: #f4f4f4 !important;
+    color: #ccc !important;
+    border-color: #e0e0e0 !important;
+    cursor: not-allowed !important;
+}
+
+
+
+
 
 /* Tira a barra de rolagem dos modais curtos e deixa a caixa esticar */
 #modalAcaoLote .modal-body,
@@ -543,4 +586,193 @@ select.select-nativo { appearance: none; background-image: url("data:image/svg+x
     overflow-y: visible !important;
     max-height: none !important;
     padding-bottom: 20px;
+}
+
+/* --- Sprint: Validador de Cartela e Pendências de Lotes --- */
+.section-header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 1.2rem;
+}
+
+.section-helper-text {
+    color: var(--dim-grey);
+    margin-top: 6px;
+    font-size: 0.95rem;
+    line-height: 1.45;
+}
+
+.validator-card {
+    background: #ffffff;
+    border: 1px solid #eeeeee;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.04);
+}
+
+.validator-form {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) auto auto;
+    gap: 12px;
+    align-items: center;
+}
+
+.validator-result-area {
+    margin-top: 18px;
+}
+
+.validador-result {
+    border-radius: 14px;
+    padding: 18px;
+    border-left: 8px solid #cccccc;
+    background: #fafafa;
+}
+
+.validador-result.success {
+    border-left-color: var(--petal-pink);
+    background: rgba(188, 104, 161, 0.08);
+}
+
+.validador-result.warning {
+    border-left-color: var(--sunflower-gold);
+    background: rgba(244, 184, 65, 0.12);
+}
+
+.validador-result.danger {
+    border-left-color: #d93025;
+    background: rgba(217, 48, 37, 0.08);
+}
+
+.validador-status {
+    font-size: 1.35rem;
+    font-weight: 900;
+    color: var(--obsidian);
+    letter-spacing: 0.04em;
+}
+
+.validador-lote {
+    color: var(--petal-pink);
+    font-size: 1.6rem;
+    font-weight: 900;
+    margin: 4px 0 10px 0;
+}
+
+.validador-meta {
+    color: var(--dim-grey);
+    font-size: 0.95rem;
+    margin-top: 5px;
+}
+
+.btn-secondary-soft {
+    border: 1px solid #e8d9e4;
+    background: #ffffff;
+    color: var(--petal-pink);
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.btn-secondary-soft:hover {
+    background: rgba(188, 104, 161, 0.08);
+    border-color: var(--petal-pink);
+}
+
+.badge-lote-pendente {
+    border: 1px dashed var(--sunflower-gold);
+    background: rgba(244, 184, 65, 0.14);
+    color: var(--dim-grey);
+}
+
+@media (max-width: 768px) {
+    .validator-form {
+        grid-template-columns: 1fr;
+    }
+
+    .section-header-actions {
+        align-items: stretch;
+    }
+
+    .section-header-actions .btn-primary,
+    .section-header-actions .btn-secondary-soft {
+        width: 100%;
+    }
+}
+
+/* Validador automático de lotes */
+.validador-help {
+    margin-top: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    background: #f7f7f7;
+    color: var(--dim-grey);
+    font-size: 0.9rem;
+    border: 1px dashed #d9d9d9;
+}
+
+.validador-sugestoes {
+    margin-top: 0.75rem;
+    display: grid;
+    gap: 0.55rem;
+}
+
+.validador-sugestoes-title {
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--dim-grey);
+    margin-bottom: 0.15rem;
+}
+
+.validador-sugestao-btn {
+    width: 100%;
+    border: 1px solid #ece6ef;
+    background: #fff;
+    border-radius: 14px;
+    padding: 0.75rem 0.85rem;
+    text-align: left;
+    display: grid;
+    grid-template-columns: minmax(95px, auto) 1fr;
+    gap: 0.35rem 0.6rem;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(30, 30, 30, 0.04);
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.validador-sugestao-btn:hover {
+    transform: translateY(-1px);
+    border-color: var(--petal-pink);
+    box-shadow: 0 10px 24px rgba(188, 104, 161, 0.12);
+}
+
+.sugestao-lote {
+    font-weight: 900;
+    color: var(--obsidian);
+}
+
+.sugestao-status {
+    justify-self: start;
+    font-size: 0.72rem;
+    font-weight: 900;
+    padding: 0.22rem 0.5rem;
+    border-radius: 999px;
+    color: #fff;
+}
+
+.sugestao-status.success { background: #33a86a; }
+.sugestao-status.warning { background: #f4b841; color: #2d2d2d; }
+.sugestao-status.danger { background: #e14d4d; }
+
+.validador-sugestao-btn small {
+    grid-column: 1 / -1;
+    color: #777;
+    font-weight: 600;
 }

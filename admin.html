@@ -161,8 +161,8 @@
                     </div>
                     <div class="validator-card">
                         <div class="validator-form">
-                            <input type="text" id="inputValidadorCartelaAdm" class="purple-input" placeholder="Ex: LOTE-001 ou PARC-010" onkeydown="if(event.key==='Enter'){validarCartelaPendente('inputValidadorCartelaAdm','resultadoValidadorCartelaAdm')}">
-                            <button class="btn-primary" onclick="validarCartelaPendente('inputValidadorCartelaAdm','resultadoValidadorCartelaAdm')"><span class="material-symbols-outlined">fact_check</span> Validar</button>
+                            <input type="text" id="inputValidadorCartelaAdm" class="purple-input js-validador-input" placeholder="Digite o lote: ex. LOTE-001 ou PARC-010" data-result-id="resultadoValidadorCartelaAdm" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault(); validarCartelaPendente('inputValidadorCartelaAdm','resultadoValidadorCartelaAdm')}">
+                            <button class="btn-primary" id="btnValidarCartelaAdm" type="button"><span class="material-symbols-outlined">fact_check</span> Validar</button>
                             <button class="btn-secondary-soft" onclick="limparValidadorCartela('inputValidadorCartelaAdm','resultadoValidadorCartelaAdm')"><span class="material-symbols-outlined">backspace</span> Limpar</button>
                         </div>
                         <div id="resultadoValidadorCartelaAdm" class="validator-result-area"></div>
@@ -175,7 +175,7 @@
                             <h2 class="section-title" style="margin-bottom: 0; border: none;">Pendentes de Educandos</h2>
                             <p class="section-helper-text"><strong><span id="totalPendentesADM">0</span></strong> lote(s) pendente(s). Cada linha representa um lote, porque a data de retirada pode variar.</p>
                         </div>
-                        <button class="btn-primary" onclick="exportarPendentesAdmin()"><span class="material-symbols-outlined">download</span> Exportar Excel</button>
+                        <button class="btn-primary" id="btnExportarPendentesAdm" type="button"><span class="material-symbols-outlined">download</span> Exportar Excel</button>
                     </div>
                     <input type="text" id="buscaPendentesAdm" class="purple-input" placeholder="Pesquisar por nome, curso, turma, lote ou responsável..." style="margin-bottom: 1rem;">
                     <div class="table-container" style="overflow-x: auto;">
@@ -421,6 +421,6 @@
         </div>
     </div>
 
-    <script src="js/app.js"></script>
+    <script src="js/app.js?v=20260625-2"></script>
 </body>
 </html>
