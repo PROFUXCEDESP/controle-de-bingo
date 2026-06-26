@@ -550,6 +550,79 @@ document.addEventListener("DOMContentLoaded", () => {
         window.registrarLog("Exportação Pendentes", `Exportou ${linhas.length} lote(s) pendente(s) do educador ${userName}.`);
     }
 
+    function baixarCSVPersonalizado(nomeArquivo, cabecalhos, linhas) {
+        if (!linhas.length) return window.abrirModalErro("Não há educandos com cartela extra pendente para exportar.");
+        const csv = [cabecalhos, ...linhas]
+            .map(row => row.map(escaparCSV).join(';'))
+            .join('\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = nomeArquivo;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    function montarCartelasExtrasPendentes(escopo = 'admin') {
+        let base = (window.todosEducandosBD || []).filter(pessoa => !ehVendaDireta(pessoa));
+        if (escopo === 'educador') base = base.filter(pessoa => textoIgual(pessoa.educadorResponsavel, userName));
+
+        return base.map(pessoa => {
+            const vendidos = (pessoa.lotesVendidos || []).length;
+            const recompensas = calcularRecompensas(vendidos);
+            const entregues = Number(pessoa.cartelasEntregues || 0);
+            const aReceber = Math.max(0, Number(recompensas.cartelas || 0) - entregues);
+            return {
+                nome: pessoa.nome || '-',
+                curso: pessoa.curso || '-',
+                turma: pessoa.turma || '-',
+                educadorResponsavel: pessoa.educadorResponsavel || '-',
+                vendidos,
+                cartelasGanhas: Number(recompensas.cartelas || 0),
+                cartelasEntregues: entregues,
+                cartelasAReceber: aReceber
+            };
+        })
+        .filter(item => item.cartelasAReceber > 0)
+        .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    }
+
+    function exportarCartelasExtras(escopo = 'admin') {
+        const linhas = montarCartelasExtrasPendentes(escopo);
+        const data = new Date().toISOString().slice(0, 10);
+        const cabecalhos = [
+            'Nome',
+            'Curso',
+            'Turma',
+            'Educador responsável',
+            'Lotes vendidos',
+            'Cartelas ganhas',
+            'Cartelas já entregues',
+            'Cartelas a receber'
+        ];
+        const corpo = linhas.map(item => [
+            item.nome,
+            item.curso,
+            item.turma,
+            item.educadorResponsavel,
+            item.vendidos,
+            item.cartelasGanhas,
+            item.cartelasEntregues,
+            item.cartelasAReceber
+        ]);
+        const prefixo = escopo === 'educador' ? `cartelas_extras_${userName.replace(/\s+/g, '_')}` : 'cartelas_extras_admin';
+        baixarCSVPersonalizado(`${prefixo}_${data}.csv`, cabecalhos, corpo);
+        if (linhas.length) {
+            window.registrarLog("Exportação Cartelas Extras", `Exportou ${linhas.length} educando(s) com cartela(s) extra(s) pendente(s).`);
+        }
+    }
+
+    window.exportarCartelasExtrasAdmin = function() { exportarCartelasExtras('admin'); }
+    window.exportarCartelasExtrasEducador = function() { exportarCartelasExtras('educador'); }
+
     function buscarCartelaNoSistema(codigoDigitado) {
         const codigo = normalizarCodigoLote(codigoDigitado);
         if (!codigo) return null;
@@ -1373,6 +1446,8 @@ document.addEventListener("DOMContentLoaded", () => {
     ligarCliqueSeguro('btnExportarPendentesAdm', () => window.exportarPendentesAdmin());
     ligarCliqueSeguro('btnExportarPendentesMinhaTurma', () => window.exportarPendentesEducador());
     ligarCliqueSeguro('btnExportarPendentesEducador', () => window.exportarPendentesEducador());
+    ligarCliqueSeguro('btnExportarCartelasExtrasAdm', () => window.exportarCartelasExtrasAdmin());
+    ligarCliqueSeguro('btnExportarCartelasExtrasMinhaTurma', () => window.exportarCartelasExtrasEducador());
     ligarCliqueSeguro('btnValidarCartelaAdm', () => window.validarCartelaPendente('inputValidadorCartelaAdm', 'resultadoValidadorCartelaAdm'));
     ligarCliqueSeguro('btnValidarCartelaEducador', () => window.validarCartelaPendente('inputValidadorCartelaEducador', 'resultadoValidadorCartelaEducador'));
     ligarCliqueSeguro('btnConferirCaixaVendaDireta', () => window.conferirCaixaVendaDireta());

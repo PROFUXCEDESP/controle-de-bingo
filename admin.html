@@ -275,7 +275,13 @@
                 </section>
                 
                 <section id="secRankingAlunos" style="display: none;">
-                    <h2 class="section-title">Ranking Geral de Educandos</h2>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <h2 class="section-title" style="margin-bottom: 0; border: none;">Ranking Geral de Educandos</h2>
+                            <p class="section-helper-text" style="margin: 0.25rem 0 0;">Acompanhe vendas, pendências e recompensas dos educandos.</p>
+                        </div>
+                        <button class="btn-primary" id="btnExportarCartelasExtrasAdm" type="button" style="background-color: var(--sunflower-gold); color: white;"><span class="material-symbols-outlined">download</span> Exportar Cartelas Extras</button>
+                    </div>
                     <input type="text" id="buscaRankingAluno" class="purple-input" placeholder="Pesquisar educando no ranking..." style="margin-bottom: 1rem;">
                     <div class="table-container">
                         <table class="data-table" style="width: 100%;">
@@ -611,6 +617,6 @@
         </div>
     </div>
 
-    <script src="js/app.js?v=20260625-16"></script>
+    <script src="js/app.js?v=20260625-17"></script>
 </body>
 </html>
